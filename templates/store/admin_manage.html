@@ -1,0 +1,50 @@
+{% extends 'store/base.html' %}
+{% block title %}مدیریت ادمین‌ها | آسمان شب{% endblock %}
+{% block header %}{% endblock %}
+{% block content %}
+<div id="admin-app">
+  {% include 'store/panel_nav.html' with active_page='admins' %}
+  <main class="admin-main">
+    {% if messages %}<div class="messages">{% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+    <div class="top"><h1>مدیریت ادمین‌ها</h1></div>
+    <form class="box fm product-form account-form" method="post">
+      {% csrf_token %}
+      <h2>ساخت حساب ادمین</h2>
+      {% for field in form %}
+      <label for="{{ field.id_for_label }}">{{ field.label }}{{ field }}
+        {% if field.help_text %}<span class="note">{{ field.help_text }}</span>{% endif %}
+        {% for error in field.errors %}<span class="err">{{ error }}</span>{% endfor %}
+      </label>
+      {% endfor %}
+      {% if form.non_field_errors %}<div class="err">{{ form.non_field_errors }}</div>{% endif %}
+      <button class="btn">ساخت ادمین</button>
+    </form>
+    <section class="dashboard-section">
+      <h2>حساب‌های مدیریت</h2>
+      <div class="box tw">
+        <table>
+          <thead><tr><th>نام کاربری</th><th>نوع حساب</th><th>وضعیت</th><th>آخرین ورود</th><th>مدیریت</th></tr></thead>
+          <tbody>
+            {% for user in users %}
+            <tr>
+              <td>{{ user.username }}</td>
+              <td>{% if user.is_superuser %}ادمین اصلی{% else %}ادمین{% endif %}</td>
+              <td>{% if user.is_active %}فعال{% else %}غیرفعال{% endif %}</td>
+              <td>{% if user.last_login %}{{ user.last_login|date:'Y/m/d H:i' }}{% else %}هنوز وارد نشده{% endif %}</td>
+              <td>
+                {% if not user.is_superuser and user.pk != request.user.pk %}
+                <form method="post" action="{% url 'admin_delete' user.pk %}" onsubmit="return confirm('حساب ادمین «{{ user.username|escapejs }}» حذف شود؟')">
+                  {% csrf_token %}
+                  <button class="btn delete s" type="submit">حذف ادمین</button>
+                </form>
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% empty %}<tr><td colspan="5">حسابی ثبت نشده است.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

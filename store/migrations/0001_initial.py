@@ -1,0 +1,13 @@
+from django.db import migrations, models
+import django.db.models.deletion
+
+
+class Migration(migrations.Migration):
+    initial = True
+    dependencies = []
+    operations = [
+        migrations.CreateModel(name="Category", fields=[("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")), ("name", models.CharField(max_length=80, unique=True, verbose_name="نام")), ("slug", models.SlugField(allow_unicode=True, unique=True, verbose_name="شناسه"))], options={"verbose_name": "دسته‌بندی", "verbose_name_plural": "دسته‌بندی‌ها"}),
+        migrations.CreateModel(name="Order", fields=[("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")), ("customer_name", models.CharField(max_length=120, verbose_name="نام مشتری")), ("phone", models.CharField(max_length=20, verbose_name="تلفن")), ("address", models.TextField(verbose_name="نشانی")), ("status", models.CharField(choices=[("new", "جدید"), ("preparing", "در حال آماده‌سازی"), ("sent", "ارسال‌شده"), ("delivered", "تحویل‌شده"), ("cancelled", "لغوشده")], default="new", max_length=12, verbose_name="وضعیت")), ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت"))], options={"verbose_name": "سفارش", "verbose_name_plural": "سفارش‌ها", "ordering": ["-created_at"]}),
+        migrations.CreateModel(name="Product", fields=[("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")), ("name", models.CharField(max_length=160, verbose_name="نام محصول")), ("description", models.TextField(blank=True, verbose_name="توضیحات")), ("price", models.PositiveIntegerField(verbose_name="قیمت (تومان)")), ("old_price", models.PositiveIntegerField(blank=True, null=True, verbose_name="قیمت قبل")), ("image", models.ImageField(blank=True, upload_to="products/", verbose_name="تصویر")), ("is_active", models.BooleanField(default=True, verbose_name="فعال")), ("created_at", models.DateTimeField(auto_now_add=True)), ("category", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="products", to="store.category", verbose_name="دسته‌بندی"))], options={"verbose_name": "محصول", "verbose_name_plural": "محصول‌ها", "ordering": ["-created_at"]}),
+        migrations.CreateModel(name="OrderItem", fields=[("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")), ("quantity", models.PositiveIntegerField(default=1)), ("unit_price", models.PositiveIntegerField()), ("order", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="items", to="store.order")), ("product", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to="store.product"))]),
+    ]

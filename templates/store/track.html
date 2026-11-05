@@ -1,0 +1,38 @@
+{% extends 'store/base.html' %}
+{% block title %}پیگیری سفارش | آسمان شب{% endblock %}
+{% block content %}
+<main class="wrap tracking-page">
+  <h1>پیگیری سفارش</h1>
+  <p class="sub">شماره سفارش و چهار رقم آخر شماره تلفن را وارد کنید.</p>
+  <form class="tk" method="post">
+    {% csrf_token %}
+    <input class="field" name="number" inputmode="numeric" placeholder="شماره سفارش" aria-label="شماره سفارش" required>
+    <input class="field" name="phone" inputmode="numeric" maxlength="4" placeholder="چهار رقم آخر تلفن" aria-label="چهار رقم آخر شماره تلفن" required>
+    <button class="btn">پیگیری</button>
+  </form>
+  {% if error %}
+  <div class="tkr"><h3>{{ error }}</h3><p>شماره سفارش و چهار رقم آخر تلفن را بررسی کنید.</p></div>
+  {% endif %}
+  {% if order %}
+  <div class="tkr">
+    <h3>سفارش شماره {{ order.id }}</h3>
+    <p>ثبت‌شده در {{ order.created_at|date:'Y/m/d' }}</p>
+    <div class="order-items">
+      {% for item in order.items.all %}
+      <p>{{ item.product.name }}{% if item.variant_name %} ({{ item.variant_name }}){% endif %} × {{ item.quantity }}</p>
+      {% endfor %}
+    </div>
+    {% if order.status == 'cancelled' %}
+    <p class="bad">این سفارش لغو شده است. برای اطلاعات بیشتر در تلگرام پیام دهید.</p>
+    {% else %}
+    <div class="tl">
+      {% for status, label in status_steps %}
+      <div class="{% if forloop.counter0 <= status_index %}on{% endif %}"><i></i>{{ label }}</div>
+      {% endfor %}
+    </div>
+    <p>وضعیت فعلی: <b>{{ order.get_status_display }}</b></p>
+    {% endif %}
+  </div>
+  {% endif %}
+</main>
+{% endblock %}

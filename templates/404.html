@@ -1,0 +1,24 @@
+{% extends 'store/base.html' %}
+
+{% block title %}صفحه پیدا نشد | آسمان شب{% endblock %}
+
+{% block head %}
+<style>
+  .not-found{min-height:65vh;display:grid;place-items:center;padding:56px 0;text-align:center}
+  .not-found__content{max-width:560px}
+  .not-found__code{margin:0;color:#e8d9ad;font-size:clamp(72px,18vw,140px);line-height:1;font-weight:700;letter-spacing:.08em}
+  .not-found h1{margin:18px 0 10px;font-size:clamp(22px,5vw,32px)}
+  .not-found p{margin:0 0 28px;color:#c4c7d1;line-height:2}
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="wrap not-found">
+  <div class="not-found__content">
+    <p class="not-found__code" aria-label="خطای ۴۰۴">404</p>
+    <h1>این صفحه پیدا نشد</h1>
+    <p>شاید آدرس اشتباه باشد یا صفحه جابه‌جا شده باشد. می‌توانید به صفحهٔ اصلی برگردید.</p>
+    <a class="btn" href="{% url 'home' %}">بازگشت به صفحهٔ اصلی</a>
+  </div>
+</main>
+{% endblock %}

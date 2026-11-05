@@ -1,0 +1,75 @@
+{% extends 'store/base.html' %}
+{% load static %}
+{% block title %}{% if product %}ویرایش محصول{% else %}محصول جدید{% endif %} | آسمان شب{% endblock %}
+{% block header %}{% endblock %}
+{% block content %}
+<div id="admin-app">
+  {% include 'store/panel_nav.html' with active_page='products' %}
+  <main class="admin-main">
+    {% if messages %}<div class="messages">{% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+    <form class="box fm product-form" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <h2>{% if product %}ویرایش{% else %}افزودن{% endif %} محصول</h2>
+      <label for="{{ form.name.id_for_label }}">{{ form.name.label }}{{ form.name }}{% for error in form.name.errors %}<span class="err">{{ error }}</span>{% endfor %}</label>
+      <div class="category-field">
+        <label for="{{ form.category.id_for_label }}">{{ form.category.label }}{{ form.category }}{% for error in form.category.errors %}<span class="err">{{ error }}</span>{% endfor %}</label>
+        <a class="text-link category-add-link" href="{% url 'category_list' %}?next=product_add" target="_blank" rel="noopener">+ افزودن دسته‌بندی</a>
+      </div>
+      <label for="{{ form.price.id_for_label }}">{{ form.price.label }}{{ form.price }}{% for error in form.price.errors %}<span class="err">{{ error }}</span>{% endfor %}</label>
+      <label for="{{ form.stock.id_for_label }}">{{ form.stock.label }}{{ form.stock }}{% for error in form.stock.errors %}<span class="err">{{ error }}</span>{% endfor %}</label>
+      <section class="variant-section" aria-labelledby="variant-heading">
+        <div class="variant-heading">
+          <div>
+            <h3 id="variant-heading">سایزها و قیمت‌ها</h3>
+            <p class="note">برای محصول بدون سایز، این بخش را خالی بگذارید. موجودی بین همه سایزها مشترک است.</p>
+          </div>
+          <button class="btn g s" id="add-variant" type="button">افزودن سایز</button>
+        </div>
+        {{ variant_formset.management_form }}
+        {% if variant_formset.non_form_errors %}<div class="err">{{ variant_formset.non_form_errors }}</div>{% endif %}
+        <div id="variant-rows">
+          {% for variant_form in variant_formset %}
+          <div class="variant-row">
+            {% for hidden in variant_form.hidden_fields %}{{ hidden }}{% endfor %}
+            <label for="{{ variant_form.size.id_for_label }}">{{ variant_form.size.label }}{{ variant_form.size }}
+              {% for error in variant_form.size.errors %}<span class="err">{{ error }}</span>{% endfor %}
+            </label>
+            <label for="{{ variant_form.price.id_for_label }}">{{ variant_form.price.label }}{{ variant_form.price }}
+              {% for error in variant_form.price.errors %}<span class="err">{{ error }}</span>{% endfor %}
+            </label>
+            <label class="inline-check variant-delete">{{ variant_form.DELETE }}<span>حذف این سایز</span></label>
+            <button class="btn g s" type="button" data-remove-variant>برداشتن ردیف</button>
+            {% for error in variant_form.non_field_errors %}<span class="err">{{ error }}</span>{% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+        <template id="variant-empty-form">
+          <div class="variant-row">
+            {% for hidden in variant_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+            <label for="{{ variant_formset.empty_form.size.id_for_label }}">{{ variant_formset.empty_form.size.label }}{{ variant_formset.empty_form.size }}</label>
+            <label for="{{ variant_formset.empty_form.price.id_for_label }}">{{ variant_formset.empty_form.price.label }}{{ variant_formset.empty_form.price }}</label>
+            <label class="inline-check variant-delete">{{ variant_formset.empty_form.DELETE }}<span>حذف این سایز</span></label>
+            <button class="btn g s" type="button" data-remove-variant>برداشتن ردیف</button>
+          </div>
+        </template>
+      </section>
+      <label for="{{ form.image.id_for_label }}">{{ form.image.label }}{{ form.image }}{% for error in form.image.errors %}<span class="err">{{ error }}</span>{% endfor %}</label>
+      <div class="pv" id="image-preview" {% if not product or not product.image %}hidden{% endif %}>
+        {% if product and product.image %}<img src="{{ product.image.url }}" alt="پیش‌نمایش تصویر محصول">{% endif %}
+      </div>
+      {% if product and product.image %}
+      <label class="inline-check"><input type="checkbox" name="clear_image" value="1"><span>حذف تصویر فعلی</span></label>
+      {% endif %}
+      <label class="inline-check" for="{{ form.discount_enabled.id_for_label }}">{{ form.discount_enabled }}<span>{{ form.discount_enabled.label }}</span></label>
+      {% for error in form.discount_enabled.errors %}<span class="err">{{ error }}</span>{% endfor %}
+      <label for="{{ form.discount_percent.id_for_label }}">{{ form.discount_percent.label }}{{ form.discount_percent }}
+        <span class="note">درصدی بین ۱ تا ۹۰ وارد کنید.</span>
+        {% for error in form.discount_percent.errors %}<span class="err">{{ error }}</span>{% endfor %}
+      </label>
+      {% if form.non_field_errors %}<div class="err">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="form-actions"><button class="btn">ذخیره</button><a class="btn g" href="{% url 'product_list' %}">انصراف</a></div>
+    </form>
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'store/js/product-form.js' %}" defer></script>{% endblock %}

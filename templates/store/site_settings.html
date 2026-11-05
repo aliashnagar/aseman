@@ -1,0 +1,80 @@
+{% extends 'store/base.html' %}
+{% load static %}
+{% block title %}تنظیمات سایت | آسمان شب{% endblock %}
+{% block header %}{% endblock %}
+{% block content %}
+<div id="admin-app">
+  {% include 'store/panel_nav.html' with active_page='site' %}
+  <main class="admin-main">
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}
+      </div>
+    {% endif %}
+    <div class="top"><h1>تنظیمات سایت</h1></div>
+    <form class="product-form site-settings-form" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <details class="settings-group" open>
+        <summary>عنوان و تصویر اصلی</summary>
+        <div class="r2">
+          {% include 'store/_settings_field.html' with field=form.brand_name %}
+          {% include 'store/_settings_field.html' with field=form.meta_title %}
+          {% include 'store/_settings_field.html' with field=form.hero_image %}
+          {% include 'store/_settings_field.html' with field=form.hero_text %}
+        </div>
+      </details>
+      <details class="settings-group" {% if form.errors %}open{% endif %}>
+        <summary>دکمه‌های صفحه اصلی</summary>
+        <div class="r2">
+          {% include 'store/_settings_field.html' with field=form.primary_cta_text %}
+          {% include 'store/_settings_field.html' with field=form.primary_cta_link %}
+          {% include 'store/_settings_field.html' with field=form.secondary_cta_text %}
+          {% include 'store/_settings_field.html' with field=form.secondary_cta_link %}
+        </div>
+      </details>
+      <details class="settings-group" {% if form.errors %}open{% endif %}>
+        <summary>بخش‌های صفحه</summary>
+        <div class="r2">
+          {% include 'store/_settings_field.html' with field=form.shop_title %}
+          {% include 'store/_settings_field.html' with field=form.shop_subtitle %}
+          {% include 'store/_settings_field.html' with field=form.track_title %}
+          {% include 'store/_settings_field.html' with field=form.track_subtitle %}
+          {% include 'store/_settings_field.html' with field=form.order_title %}
+          {% include 'store/_settings_field.html' with field=form.order_subtitle %}
+        </div>
+      </details>
+      <details class="settings-group" {% if form.errors %}open{% endif %}>
+        <summary>کارت‌های الهام‌بخش</summary>
+        <div class="r2">
+          {% include 'store/_settings_field.html' with field=form.inspiration_card_1 %}
+          {% include 'store/_settings_field.html' with field=form.inspiration_card_2 %}
+          {% include 'store/_settings_field.html' with field=form.inspiration_card_3 %}
+          {% include 'store/_settings_field.html' with field=form.inspiration_card_4 %}
+          {% include 'store/_settings_field.html' with field=form.inspiration_card_color %}
+          {% include 'store/_settings_field.html' with field=form.inspiration_text_color %}
+          {% include 'store/_settings_field.html' with field=form.inspiration_hatch %}
+        </div>
+      </details>
+      <details class="settings-group" {% if form.errors %}open{% endif %}>
+        <summary>فوتر و راه‌های ارتباطی</summary>
+        <div class="r2">
+          {% include 'store/_settings_field.html' with field=form.footer_brand %}
+          {% include 'store/_settings_field.html' with field=form.footer_text %}
+          {% include 'store/_settings_field.html' with field=form.footer_order_label %}
+          {% include 'store/_settings_field.html' with field=form.footer_order_text %}
+          {% include 'store/_settings_field.html' with field=form.footer_order_link %}
+          {% include 'store/_settings_field.html' with field=form.footer_channel_label %}
+          {% include 'store/_settings_field.html' with field=form.footer_channel_text %}
+          {% include 'store/_settings_field.html' with field=form.footer_channel_link %}
+        </div>
+      </details>
+      <div class="actions"><button class="btn" type="submit">ذخیره تغییرات</button></div>
+    </form>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'store/js/color-settings.js' %}" defer></script>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends 'store/base.html' %}
+{% block title %}دسته‌بندی‌ها | آسمان شب{% endblock %}
+{% block header %}{% endblock %}
+{% block content %}
+<div id="admin-app">
+  {% include 'store/panel_nav.html' with active_page='categories' %}
+  <main class="admin-main">
+    {% if messages %}<div class="messages">{% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+    <div class="top"><h1>دسته‌بندی‌ها</h1>{% if next_page == 'product_add' %}<a class="btn g" href="{% url 'product_add' %}">بازگشت به افزودن محصول</a>{% endif %}</div>
+    <form class="box fm category-form" method="post">
+      {% csrf_token %}
+      {% if next_page %}<input type="hidden" name="next" value="{{ next_page }}">{% endif %}
+      <h2>افزودن دسته‌بندی</h2>
+      <label for="{{ form.name.id_for_label }}">{{ form.name.label }}{{ form.name }}{% for error in form.name.errors %}<span class="err">{{ error }}</span>{% endfor %}</label>
+      {% if form.non_field_errors %}<div class="err">{{ form.non_field_errors }}</div>{% endif %}
+      <button class="btn">ثبت دسته‌بندی</button>
+    </form>
+    <section class="dashboard-section">
+      <div class="box tw">
+        <table class="category-table">
+          <thead><tr><th>نام دسته‌بندی</th><th>تعداد محصول</th><th>شناسه</th></tr></thead>
+          <tbody>
+            {% for category in categories %}
+            <tr><td>{{ category.name }}</td><td>{{ category.product_count }}</td><td dir="ltr">{{ category.slug }}</td></tr>
+            {% empty %}<tr><td colspan="3">هنوز دسته‌بندی‌ای ثبت نشده است.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}

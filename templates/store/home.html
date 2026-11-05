@@ -1,0 +1,115 @@
+{% extends 'store/base.html' %}
+{% load static %}
+{% block content %}
+<canvas id="sky" aria-hidden="true"></canvas>
+<main id="top">
+  <h1 class="visually-hidden">آسمان شب</h1>
+  <div class="wrap hero">
+    <div class="moonbox">
+      <img class="moonimg" src="{% if site.hero_image %}{{ site.hero_image.url }}{% else %}{% static 'store/images/moon.webp' %}{% endif %}" alt="ماه کامل" width="430" height="430">
+    </div>
+    <p>{{ site.hero_text|default:'تابلوهای هوشمند، گل‌های مخملی، چراغ خواب و هدیه‌های آماده. هر چیزی که شب‌های خانه‌تان را آرام‌تر می‌کند.' }}</p>
+    <div class="cta">
+      <a class="btn" href="{{ site.primary_cta_link|default:'#shop' }}">{{ site.primary_cta_text|default:'مشاهده محصولات' }}</a>
+      <a class="btn ghost" href="{{ site.secondary_cta_link|default:'https://t.me/tablo_aseman_shab' }}" target="_blank" rel="noopener">{{ site.secondary_cta_text|default:'ثبت سفارش در تلگرام' }}</a>
+    </div>
+  </div>
+
+  <div class="strip">
+    <div class="wrap"><span>ارسال به سراسر کشور</span><span>بسته‌بندی هدیه</span><span>ثبت سفارش در تلگرام</span></div>
+  </div>
+
+  <section id="shop">
+    <div class="wrap">
+      <h2>{{ site.shop_title|default:'محصولات' }}</h2>
+      <p class="sub">{{ site.shop_subtitle|default:'مجموعه‌ی آسمان شب' }}</p>
+      <div class="tools">
+        <select class="field" id="so" aria-label="مرتب‌سازی">
+          <option value="0">پرفروش‌ترین</option>
+          <option value="1">ارزان‌ترین</option>
+          <option value="2">گران‌ترین</option>
+        </select>
+      </div>
+      <div class="grid" id="grid" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section id="inspiration" aria-label="جمله‌های الهام‌بخش">
+    <h2 class="visually-hidden">یادداشت‌هایی برای لبخند</h2>
+    <div class="wrap inspiration-grid" style="--inspiration-card-color: {{ site.inspiration_card_color }}; --inspiration-text-color: {{ site.inspiration_text_color }};">
+      <article class="inspiration-card{% if site.inspiration_hatch %} inspiration-card--hatched{% endif %}">
+        <p>{{ site.inspiration_card_1 }}</p>
+      </article>
+      <article class="inspiration-card{% if site.inspiration_hatch %} inspiration-card--hatched{% endif %}">
+        <p>{{ site.inspiration_card_2 }}</p>
+      </article>
+      <article class="inspiration-card{% if site.inspiration_hatch %} inspiration-card--hatched{% endif %}">
+        <p>{{ site.inspiration_card_3 }}</p>
+      </article>
+      <article class="inspiration-card{% if site.inspiration_hatch %} inspiration-card--hatched{% endif %}">
+        <p>{{ site.inspiration_card_4 }}</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="track">
+    <div class="wrap">
+      <h2>{{ site.track_title|default:'پیگیری سفارش' }}</h2>
+      <p class="sub">{{ site.track_subtitle|default:'شماره سفارش و چهار رقم آخر شماره تلفن را وارد کنید.' }}</p>
+      <form class="tk" method="post" action="{% url 'track_order' %}">
+        {% csrf_token %}
+        <input class="field" name="number" inputmode="numeric" placeholder="شماره سفارش" aria-label="شماره سفارش" required>
+        <input class="field" name="phone" inputmode="numeric" maxlength="4" placeholder="چهار رقم آخر تلفن" aria-label="چهار رقم آخر شماره تلفن" required>
+        <button class="btn">پیگیری</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="order">
+    <div class="wrap">
+      <h2>{{ site.order_title|default:'نحوه سفارش' }}</h2>
+      <p class="sub">{{ site.order_subtitle|default:'بدون ثبت‌نام؛ سبد را پر کنید و سفارش را در تلگرام نهایی کنید.' }}</p>
+      <div class="steps">
+        <div><b>انتخاب محصول</b><span>محصولات را به سبد خرید اضافه کنید.</span></div>
+        <div><b>ارسال سفارش</b><span>مشخصات را وارد کنید تا پیام سفارش در تلگرام آماده شود.</span></div>
+        <div><b>پرداخت و ارسال</b><span>جزئیات پرداخت و ارسال را در گفتگو با ما نهایی می‌کنیم.</span></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="contact">
+  <div class="wrap">
+    <div><span class="logo">{{ site.footer_brand|default:'آسمان شب' }}</span>{{ site.footer_text|default:'تابلو، گل و هدیه. ارسال به سراسر کشور.' }}</div>
+    <div>{{ site.footer_order_label|default:'ثبت سفارش:' }} <a href="{{ site.footer_order_link|default:'https://t.me/tablo_aseman_shab' }}" target="_blank" rel="noopener" dir="ltr">{{ site.footer_order_text|default:'@tablo_aseman_shab' }}</a><br>{{ site.footer_channel_label|default:'کانال تلگرام:' }} <a href="{{ site.footer_channel_link|default:'https://t.me/aseman_shab_ir' }}" target="_blank" rel="noopener" dir="ltr">{{ site.footer_channel_text|default:'aseman_shab_ir' }}</a></div>
+  </div>
+</footer>
+{% endblock %}
+
+{% block overlays %}
+<div class="ov" id="ov"></div>
+<aside class="drawer" id="dr" aria-label="سبد خرید" aria-hidden="true">
+  <div class="dh">
+    <h2 id="dt">سبد خرید</h2>
+    <button class="ibtn" id="dc" type="button" aria-label="بستن سبد خرید">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="db" id="items"></div>
+  <div class="df" id="df">
+    <div class="tot"><span>جمع کل</span><b id="tt"></b></div>
+    <input class="field" id="fn" placeholder="نام و نام خانوادگی" autocomplete="name">
+    <input class="field" id="fp" placeholder="شماره تماس" inputmode="tel" autocomplete="tel">
+    <textarea class="field" id="fa" placeholder="شهر و آدرس کامل"></textarea>
+    <p class="err" id="er" role="alert"></p>
+    <button class="btn" id="go" type="button">ارسال سفارش در تلگرام</button>
+    <p class="note">هزینه ارسال و پرداخت در گفتگوی تلگرام نهایی می‌شود.</p>
+  </div>
+</aside>
+<dialog id="dg"></dialog>
+<div class="toast" id="ts" role="status"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'store/js/store.js' %}" defer></script>
+{% endblock %}

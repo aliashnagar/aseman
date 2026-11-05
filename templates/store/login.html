@@ -1,0 +1,17 @@
+{% extends 'store/base.html' %}
+{% block title %}ورود | پنل مدیریت آسمان شب{% endblock %}
+{% block header %}{% endblock %}
+{% block content %}
+<main class="login-page">
+  <form method="post" class="lg">
+    {% csrf_token %}
+    <h1>آسمان شب</h1>
+    <p>ورود به پنل مدیریت</p>
+    {% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
+    <input class="field" name="username" autocomplete="username" aria-label="نام کاربری" required placeholder="نام کاربری" dir="ltr">
+    <input class="field" name="password" type="password" autocomplete="current-password" aria-label="رمز عبور" required placeholder="رمز عبور" dir="ltr">
+    <button class="btn">ورود</button>
+    <a class="back" href="{% url 'home' %}">بازگشت به فروشگاه</a>
+  </form>
+</main>
+{% endblock %}

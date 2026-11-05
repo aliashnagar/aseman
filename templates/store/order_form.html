@@ -1,0 +1,66 @@
+{% extends 'store/base.html' %}
+{% load static %}
+{% block title %}ثبت سفارش تلگرامی | آسمان شب{% endblock %}
+{% block header %}{% endblock %}
+{% block content %}
+<div id="admin-app">
+  {% include 'store/panel_nav.html' with active_page='orders' %}
+  <main class="admin-main">
+    <form class="box fm product-form order-form" method="post">
+      {% csrf_token %}
+      <h2>ثبت سفارش تلگرامی</h2>
+      <p class="note">شماره سفارش پس از ذخیره ساخته می‌شود؛ شماره و چهار رقم آخر تلفن را به مشتری بدهید تا سفارش را پیگیری کند.</p>
+      {% for field in form %}
+      <label for="{{ field.id_for_label }}">{{ field.label }}{{ field }}
+        {% for error in field.errors %}<span class="err">{{ error }}</span>{% endfor %}
+      </label>
+      {% endfor %}
+      {% if form.non_field_errors %}<div class="err">{{ form.non_field_errors }}</div>{% endif %}
+      <section class="variant-section" aria-labelledby="order-items-heading">
+        <div class="variant-heading">
+          <div><h3 id="order-items-heading">اقلام سفارش</h3></div>
+          <button class="btn g s" id="add-order-item" type="button">افزودن محصول</button>
+        </div>
+        {{ item_formset.management_form }}
+        {% if item_formset.non_form_errors %}<div class="err">{{ item_formset.non_form_errors }}</div>{% endif %}
+        <div id="order-item-rows">
+          {% for item_form in item_formset %}
+          <div class="order-item-row">
+            {% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}
+            <label for="{{ item_form.product.id_for_label }}">{{ item_form.product.label }}{{ item_form.product }}
+              {% for error in item_form.product.errors %}<span class="err">{{ error }}</span>{% endfor %}
+            </label>
+            <label for="{{ item_form.variant.id_for_label }}">{{ item_form.variant.label }}{{ item_form.variant }}
+              {% for error in item_form.variant.errors %}<span class="err">{{ error }}</span>{% endfor %}
+            </label>
+            <label for="{{ item_form.quantity.id_for_label }}">{{ item_form.quantity.label }}{{ item_form.quantity }}
+              {% for error in item_form.quantity.errors %}<span class="err">{{ error }}</span>{% endfor %}
+            </label>
+            <label for="{{ item_form.unit_price.id_for_label }}">{{ item_form.unit_price.label }}{{ item_form.unit_price }}
+              {% for error in item_form.unit_price.errors %}<span class="err">{{ error }}</span>{% endfor %}
+            </label>
+            <label class="inline-check item-delete">{{ item_form.DELETE }}<span>حذف ردیف</span></label>
+            <button class="btn g s" type="button" data-remove-order-item>برداشتن ردیف</button>
+            {% for error in item_form.non_field_errors %}<span class="err">{{ error }}</span>{% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+        <template id="order-item-empty-form">
+          <div class="order-item-row">
+            {% for hidden in item_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+            <label for="{{ item_formset.empty_form.product.id_for_label }}">{{ item_formset.empty_form.product.label }}{{ item_formset.empty_form.product }}</label>
+            <label for="{{ item_formset.empty_form.variant.id_for_label }}">{{ item_formset.empty_form.variant.label }}{{ item_formset.empty_form.variant }}</label>
+            <label for="{{ item_formset.empty_form.quantity.id_for_label }}">{{ item_formset.empty_form.quantity.label }}{{ item_formset.empty_form.quantity }}</label>
+            <label for="{{ item_formset.empty_form.unit_price.id_for_label }}">{{ item_formset.empty_form.unit_price.label }}{{ item_formset.empty_form.unit_price }}</label>
+            <label class="inline-check item-delete">{{ item_formset.empty_form.DELETE }}<span>حذف ردیف</span></label>
+            <button class="btn g s" type="button" data-remove-order-item>برداشتن ردیف</button>
+          </div>
+        </template>
+      </section>
+      <div class="form-actions"><button class="btn">ثبت سفارش و ساخت شماره پیگیری</button><a class="btn g" href="{% url 'order_list' %}">انصراف</a></div>
+    </form>
+  </main>
+</div>
+{{ products_data|json_script:"order-products-data" }}
+{% endblock %}
+{% block scripts %}<script src="{% static 'store/js/order-form.js' %}" defer></script>{% endblock %}

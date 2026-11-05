@@ -1,0 +1,16 @@
+{% if field.name == 'inspiration_card_color' or field.name == 'inspiration_text_color' %}
+  <div class="field-wrap color-setting">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    <div class="color-setting-control">
+      {{ field }}
+      <input class="color-picker" type="color" data-color-picker-for="{{ field.id_for_label }}" aria-label="انتخاب {{ field.label }}">
+    </div>
+    {% for error in field.errors %}<small class="err">{{ error }}</small>{% endfor %}
+  </div>
+{% else %}
+  <label class="field-wrap" for="{{ field.id_for_label }}">
+    <span>{{ field.label }}</span>
+    {{ field }}
+    {% for error in field.errors %}<small class="err">{{ error }}</small>{% endfor %}
+  </label>
+{% endif %}
