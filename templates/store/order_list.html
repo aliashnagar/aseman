@@ -13,12 +13,12 @@
         <tbody>
           {% for order in orders %}
           <tr>
-            <td>#{{ order.pk }}</td>
-            <td>{{ order.customer_name }}</td>
-            <td dir="ltr">{{ order.phone }}</td>
-            <td>{% for item in order.items.all %}<div>{{ item.product.name }}{% if item.variant_name %} ({{ item.variant_name }}){% endif %} × {{ item.quantity }}</div>{% empty %}—{% endfor %}</td>
-            <td>{{ order.total_amount|floatformat:0 }} تومان</td>
-            <td>
+            <td data-label="شماره">#{{ order.pk }}</td>
+            <td data-label="مشتری">{{ order.customer_name }}</td>
+            <td data-label="تلفن" dir="ltr">{{ order.phone }}</td>
+            <td data-label="محصول‌ها">{% for item in order.items.all %}<div>{{ item.product.name }}{% if item.variant_name %} ({{ item.variant_name }}){% endif %} × {{ item.quantity }}</div>{% empty %}—{% endfor %}</td>
+            <td data-label="مبلغ">{{ order.total_amount|floatformat:0 }} تومان</td>
+            <td data-label="وضعیت">
               <form class="status-form" method="post">
                 {% csrf_token %}<input type="hidden" name="order_id" value="{{ order.pk }}">
                 <select class="field" name="status" aria-label="وضعیت سفارش {{ order.pk }}">
@@ -27,9 +27,9 @@
                 <button class="btn g s">ذخیره</button>
               </form>
             </td>
-            <td>{{ order.created_at|date:'Y/m/d H:i' }}</td>
+            <td data-label="ثبت">{{ order.created_at|date:'Y/m/d H:i' }}</td>
           </tr>
-          {% empty %}<tr><td colspan="7">سفارشی ثبت نشده است.</td></tr>{% endfor %}
+          {% empty %}<tr class="empty-row"><td colspan="7">سفارشی ثبت نشده است.</td></tr>{% endfor %}
         </tbody>
       </table>
     </div>

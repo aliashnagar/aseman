@@ -1,0 +1,42 @@
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+
+# Python virtual environments and bytecode
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local databases and database sidecar files
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+
+# User-uploaded media and collected static files
+/media/
+/staticfiles/
+
+# Logs and test/tool caches
+/logs/
+*.log
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini

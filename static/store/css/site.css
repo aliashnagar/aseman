@@ -71,12 +71,12 @@ select.field option{background:var(--night)}
 .add:hover{background:var(--moon);color:var(--ink)}
 .empty{grid-column:1/-1;color:var(--mist);padding:40px 0;text-align:center}
 #inspiration{padding-top:48px}
-.inspiration-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:28px;max-width:960px}
+.inspiration-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;max-width:960px}
 .inspiration-card{position:relative;isolation:isolate;display:grid;place-items:center;min-height:108px;overflow:hidden;padding:18px 20px;border:0;border-radius:14px 14px 0 0;background:radial-gradient(ellipse at 50% 0,rgba(255,255,255,.07),transparent 68%),linear-gradient(145deg,var(--inspiration-card-color),var(--inspiration-card-color));box-shadow:0 10px 32px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,230,238,.08);color:var(--inspiration-text-color);text-align:center}
 .inspiration-card::before{position:absolute;inset:0;z-index:0;background:repeating-linear-gradient(135deg,rgba(255,235,240,.025) 0,rgba(255,235,240,.025) 1px,transparent 1px,transparent 6px);content:"";opacity:0;pointer-events:none}
 .inspiration-card--hatched::before{opacity:1}
 .inspiration-card::after{position:absolute;top:0;left:50%;width:48px;height:1px;transform:translateX(-50%);background:rgba(235,172,190,.65);box-shadow:0 0 14px rgba(235,172,190,.3);content:""}
-.inspiration-card p{max-width:100%;margin:0;font-family:"Blacksword","Brush Script MT",cursive;font-size:clamp(12px,2.5vw,25px);font-weight:400;line-height:1.55;white-space:nowrap;direction:ltr}
+.inspiration-card p{max-width:100%;margin:0;font-family:"Blacksword","Brush Script MT",cursive;font-size:clamp(12px,1.5vw,18px);font-weight:400;line-height:1.55;white-space:nowrap;direction:ltr}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--line);border-radius:2px;counter-reset:s}
 .steps div{padding:28px 26px;border-inline-start:1px solid var(--line)}
 .steps div:first-child{border-inline-start:0}
@@ -201,7 +201,7 @@ th{color:var(--mist);font-size:12px;font-weight:400}
 .chart{width:100%;height:auto;display:block;overflow:visible}
 .chart text{fill:var(--mist);font-size:11px;font-family:var(--sans)}
 .admin-main .two{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-top:16px}
-.admin-main .tw{overflow-x:auto}
+.admin-main .tw{min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
 .admin-main table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
 .admin-main th,.admin-main td{text-align:start;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
 .admin-main th{color:var(--mist);font-weight:400;font-size:12px}
@@ -312,6 +312,7 @@ th{color:var(--mist);font-size:12px;font-weight:400}
   .moonbox{--m:min(300px,82vw)}
   h2{font-size:36px}
   .steps{grid-template-columns:1fr}
+  .inspiration-grid{grid-template-columns:1fr}
   .steps div{border-inline-start:0;border-top:1px solid var(--line)}
   .steps div:first-child{border-top:0}
   .pd{grid-template-columns:1fr}
@@ -331,7 +332,20 @@ th{color:var(--mist);font-size:12px;font-weight:400}
   .admin-main{padding:20px 16px 50px}
   .product-form{padding:20px}
   .admin-main .two{grid-template-columns:1fr}
-  .admin-main .tw{overflow:visible}
+  .admin-main .tw:has(.product-table){overflow:visible}
+  .admin-main .tw:not(:has(.product-table)){overflow:visible}
+  .admin-main .tw table:not(.product-table){display:block;width:100%;min-width:0}
+  .admin-main .tw table.order-table{min-width:0!important}
+  .admin-main .tw table:not(.product-table) thead{display:none}
+  .admin-main .tw table:not(.product-table) tbody{display:grid;gap:10px}
+  .admin-main .tw table:not(.product-table) tbody tr:not(.empty-row){display:grid;min-width:0;padding:8px 12px;border:1px solid var(--line);background:rgba(14,16,24,.78)}
+  .admin-main .tw table:not(.product-table) tbody td{display:grid;grid-template-columns:minmax(76px,.4fr) minmax(0,1fr);align-items:start;gap:10px;min-width:0;padding:8px 2px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+  .admin-main .tw table:not(.product-table) tbody td::before{content:attr(data-label);color:var(--mist);font-size:12px}
+  .admin-main .tw table:not(.product-table) tbody td:last-child{border-bottom:0}
+  .admin-main .tw table:not(.product-table) tbody tr.empty-row td{display:block;border:0}
+  .admin-main .tw table:not(.product-table) tbody tr.empty-row td::before{content:none}
+  .admin-main .tw table:not(.product-table) .status-form{min-width:0}
+  .admin-main .tw table:not(.product-table) .status-form .field{flex:1;min-width:0}
   .admin-main table.product-table{display:block;min-width:0!important}
   .product-table thead{display:none}
   .product-table tbody{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,135px),1fr));align-items:start;gap:12px}

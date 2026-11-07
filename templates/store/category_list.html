@@ -21,8 +21,8 @@
           <thead><tr><th>نام دسته‌بندی</th><th>تعداد محصول</th><th>شناسه</th></tr></thead>
           <tbody>
             {% for category in categories %}
-            <tr><td>{{ category.name }}</td><td>{{ category.product_count }}</td><td dir="ltr">{{ category.slug }}</td></tr>
-            {% empty %}<tr><td colspan="3">هنوز دسته‌بندی‌ای ثبت نشده است.</td></tr>{% endfor %}
+            <tr><td data-label="نام دسته‌بندی">{{ category.name }}</td><td data-label="تعداد محصول">{{ category.product_count }}</td><td data-label="شناسه" dir="ltr">{{ category.slug }}</td></tr>
+            {% empty %}<tr class="empty-row"><td colspan="3">هنوز دسته‌بندی‌ای ثبت نشده است.</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>

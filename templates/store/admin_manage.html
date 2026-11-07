@@ -27,11 +27,11 @@
           <tbody>
             {% for user in users %}
             <tr>
-              <td>{{ user.username }}</td>
-              <td>{% if user.is_superuser %}ادمین اصلی{% else %}ادمین{% endif %}</td>
-              <td>{% if user.is_active %}فعال{% else %}غیرفعال{% endif %}</td>
-              <td>{% if user.last_login %}{{ user.last_login|date:'Y/m/d H:i' }}{% else %}هنوز وارد نشده{% endif %}</td>
-              <td>
+              <td data-label="نام کاربری">{{ user.username }}</td>
+              <td data-label="نوع حساب">{% if user.is_superuser %}ادمین اصلی{% else %}ادمین{% endif %}</td>
+              <td data-label="وضعیت">{% if user.is_active %}فعال{% else %}غیرفعال{% endif %}</td>
+              <td data-label="آخرین ورود">{% if user.last_login %}{{ user.last_login|date:'Y/m/d H:i' }}{% else %}هنوز وارد نشده{% endif %}</td>
+              <td data-label="مدیریت">
                 {% if not user.is_superuser and user.pk != request.user.pk %}
                 <form method="post" action="{% url 'admin_delete' user.pk %}" onsubmit="return confirm('حساب ادمین «{{ user.username|escapejs }}» حذف شود؟')">
                   {% csrf_token %}
@@ -40,7 +40,7 @@
                 {% else %}—{% endif %}
               </td>
             </tr>
-            {% empty %}<tr><td colspan="5">حسابی ثبت نشده است.</td></tr>{% endfor %}
+            {% empty %}<tr class="empty-row"><td colspan="5">حسابی ثبت نشده است.</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>
