@@ -1,4 +1,5 @@
 from datetime import datetime, time, timedelta
+from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
@@ -15,13 +16,26 @@ from django.utils import timezone
 from .forms import (
     AdminCreationForm,
     CategoryForm,
+    CustomerRegistrationForm,
     OrderForm,
     OrderItemFormSetFactory,
     ProductForm,
     ProductVariantFormSetFactory,
+    normalize_phone,
 )
 from .forms import SiteSettingsForm
-from .models import Category, Order, OrderItem, PageView, Product, SiteSettings
+from .models import Category, CustomerProfile, Order, OrderItem, PageView, Product, ProductImage, SiteSettings
+
+
+def panel_login_required(view):
+    @login_required
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        if hasattr(request.user, "customer_profile"):
+            raise PermissionDenied
+        return view(request, *args, **kwargs)
+
+    return wrapped
 
 
 def home(request):
@@ -31,7 +45,7 @@ def home(request):
     return render(request, "store/home.html", {"query": query, "site": site})
 
 
-@login_required
+@panel_login_required
 def site_settings_edit(request):
     if not request.user.is_superuser:
         raise PermissionDenied
@@ -76,7 +90,11 @@ def products_api(request):
         "category": product.category.slug,
         "category_name": product.category.name,
         "image_url": request.build_absolute_uri(product.image.url) if product.image else "",
-    } for product in products.prefetch_related("variants")]})
+        "gallery_images": [
+            request.build_absolute_uri(image.image.url)
+            for image in product.gallery_images.all()
+        ],
+    } for product in products.prefetch_related("variants", "gallery_images")]})
 
 
 def login_view(request):
@@ -93,12 +111,95 @@ def login_view(request):
         error = "\u0646\u0627\u0645 \u06a9\u0627\u0631\u0628\u0631\u06cc \u06cc\u0627 \u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0635\u062d\u06cc\u062d \u0646\u06cc\u0633\u062a."
     return render(request, "store/login.html", {"error": error})
 
+
+def customer_login(request):
+    if request.user.is_authenticated:
+        if hasattr(request.user, "customer_profile"):
+            return redirect("customer_dashboard")
+        return redirect("dashboard")
+
+    login_error = None
+    if request.method == "POST":
+        identifier = request.POST.get("identifier", "").strip()
+        password = request.POST.get("password", "")
+        if "@" in identifier:
+            customer = CustomerProfile.objects.select_related("user").filter(
+                user__email__iexact=identifier,
+            ).first()
+        else:
+            phone = normalize_phone(identifier)
+            customer = CustomerProfile.objects.select_related("user").filter(phone=phone).first()
+        user = authenticate(
+            request,
+            username=customer.user.username if customer else "",
+            password=password,
+        )
+        if user:
+            login(request, user)
+            return redirect("customer_dashboard")
+        login_error = "ایمیل یا شماره موبایل و رمز عبور را بررسی کنید."
+    elif request.method != "GET":
+        return HttpResponseNotAllowed(["GET", "POST"])
+
+    return render(request, "store/customer_login.html", {
+        "login_error": login_error,
+    })
+
+
+def customer_register(request):
+    if request.user.is_authenticated:
+        if hasattr(request.user, "customer_profile"):
+            return redirect("customer_dashboard")
+        return redirect("dashboard")
+    if request.method not in ("GET", "POST"):
+        return HttpResponseNotAllowed(["GET", "POST"])
+
+    registration_form = CustomerRegistrationForm(request.POST or None)
+    if request.method == "POST" and registration_form.is_valid():
+        with transaction.atomic():
+            user = registration_form.save()
+        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+        messages.success(request, "حساب شما با موفقیت ساخته شد.")
+        return redirect("customer_dashboard")
+    return render(request, "store/customer_register.html", {
+        "registration_form": registration_form,
+    })
+
+
+@login_required(login_url="customer_login")
+def customer_dashboard(request):
+    try:
+        profile = request.user.customer_profile
+    except CustomerProfile.DoesNotExist:
+        return redirect("dashboard")
+
+    password_form = PasswordChangeForm(request.user)
+    if request.method == "POST":
+        if request.POST.get("action") != "password_change":
+            return HttpResponseNotAllowed(["GET", "POST"])
+        password_form = PasswordChangeForm(request.user, request.POST)
+        if password_form.is_valid():
+            user = password_form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, "رمز عبور با موفقیت تغییر کرد.")
+            return redirect("customer_dashboard")
+    elif request.method != "GET":
+        return HttpResponseNotAllowed(["GET", "POST"])
+
+    orders = Order.objects.filter(phone=profile.phone).prefetch_related("items__product")
+    return render(request, "store/customer_dashboard.html", {
+        "profile": profile,
+        "orders": orders,
+        "password_form": password_form,
+    })
+
+
 def logout_view(request):
     logout(request)
     return redirect("home")
 
 
-@login_required
+@panel_login_required
 def password_change(request):
     form = PasswordChangeForm(request.user, request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -111,7 +212,7 @@ def password_change(request):
     return render(request, "store/password_change.html", {"form": form})
 
 
-@login_required
+@panel_login_required
 def admin_manage(request):
     if not request.user.is_superuser:
         raise PermissionDenied
@@ -129,7 +230,7 @@ def admin_manage(request):
     return render(request, "store/admin_manage.html", {"form": form, "users": users})
 
 
-@login_required
+@panel_login_required
 def admin_delete(request, pk):
     if not request.user.is_superuser:
         raise PermissionDenied
@@ -147,7 +248,7 @@ def admin_delete(request, pk):
     return redirect("admin_manage")
 
 
-@login_required
+@panel_login_required
 def dashboard(request):
     now = timezone.localtime()
     today = now.date()
@@ -202,7 +303,7 @@ def dashboard(request):
     return render(request, "store/dashboard.html", context)
 
 
-@login_required
+@panel_login_required
 def product_list(request):
     products = Product.objects.select_related("category").prefetch_related("variants").order_by("name")
     query = request.GET.get("q", "").strip()
@@ -211,7 +312,7 @@ def product_list(request):
     return render(request, "store/product_list.html", {"products": products, "query": query})
 
 
-@login_required
+@panel_login_required
 def category_list(request):
     next_page = request.GET.get("next")
     if next_page not in ("", "product_add"):
@@ -236,7 +337,7 @@ def category_list(request):
     })
 
 
-@login_required
+@panel_login_required
 def product_edit(request, pk=None):
     product = get_object_or_404(Product, pk=pk) if pk is not None else None
     if request.method == "POST":
@@ -268,6 +369,13 @@ def product_edit(request, pk=None):
                         variant.old_price = None
                         variant.price = base_price
                     variant.save()
+                for image in form.cleaned_data["additional_images"]:
+                    ProductImage.objects.create(product=saved_product, image=image)
+                image_ids_to_remove = request.POST.getlist("remove_images")
+                if image_ids_to_remove:
+                    images_to_remove = saved_product.gallery_images.filter(pk__in=image_ids_to_remove)
+                    for gallery_image in images_to_remove:
+                        gallery_image.delete()
                 if clear_image and saved_product.image:
                     saved_product.image.delete(save=False)
                     saved_product.image = ""
@@ -281,10 +389,11 @@ def product_edit(request, pk=None):
         return HttpResponseNotAllowed(["GET", "POST"])
     return render(request, "store/product_form.html", {
         "form": form, "product": product, "variant_formset": variant_formset,
+        "gallery_images": product.gallery_images.all() if product else [],
     })
 
 
-@login_required
+@panel_login_required
 def product_toggle(request, pk):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
@@ -295,7 +404,7 @@ def product_toggle(request, pk):
     return redirect("product_list")
 
 
-@login_required
+@panel_login_required
 def product_delete(request, pk):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
@@ -309,7 +418,7 @@ def product_delete(request, pk):
     return redirect("product_list")
 
 
-@login_required
+@panel_login_required
 def order_list(request):
     if request.method == "POST":
         order_id = request.POST.get("order_id")
@@ -328,7 +437,7 @@ def order_list(request):
     return render(request, "store/order_list.html", {"orders": orders, "statuses": Order.Status.choices})
 
 
-@login_required
+@panel_login_required
 def order_add(request):
     order = Order()
     if request.method == "POST":

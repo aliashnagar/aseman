@@ -1,11 +1,37 @@
+import re
+
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
+from django.contrib.auth.password_validation import validate_password
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.utils.text import slugify
 
-from .models import Category, Order, OrderItem, Product, ProductVariant, SiteSettings
+from .models import Category, CustomerProfile, Order, OrderItem, Product, ProductImage, ProductVariant, SiteSettings
+
+
+class MultipleImageInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleImageField(forms.ImageField):
+    widget = MultipleImageInput
+
+    def clean(self, data, initial=None):
+        if not data:
+            return []
+        if not isinstance(data, (list, tuple)):
+            data = [data]
+        return [super().clean(upload, initial) for upload in data]
+
+
+def normalize_phone(value):
+    phone = value.translate(str.maketrans(
+        "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩",
+        "01234567890123456789",
+    ))
+    return "".join(character for character in phone if character not in " -()")
 
 
 class SiteSettingsForm(forms.ModelForm):
@@ -36,6 +62,7 @@ class SiteSettingsForm(forms.ModelForm):
             "footer_brand",
             "footer_text",
             "footer_order_label",
+            "telegram_order_id",
             "footer_order_text",
             "footer_order_link",
             "footer_channel_label",
@@ -75,12 +102,44 @@ class SiteSettingsForm(forms.ModelForm):
             "footer_brand": forms.TextInput(attrs={"class": "field"}),
             "footer_text": forms.Textarea(attrs={"rows": 3, "class": "field"}),
             "footer_order_label": forms.TextInput(attrs={"class": "field"}),
+            "telegram_order_id": forms.TextInput({
+                "class": "field",
+                "dir": "ltr",
+                "placeholder": "مثال: my_telegram_username",
+                "autocomplete": "off",
+            }),
             "footer_order_text": forms.TextInput(attrs={"class": "field"}),
             "footer_order_link": forms.TextInput(attrs={"class": "field"}),
             "footer_channel_label": forms.TextInput(attrs={"class": "field"}),
             "footer_channel_text": forms.TextInput(attrs={"class": "field"}),
             "footer_channel_link": forms.TextInput(attrs={"class": "field"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["telegram_order_id"].help_text = (
+            "با تغییر این شناسه، مقصد سبد خرید، دکمه سفارش صفحه اصلی و لینک سفارش فوتر باهم به‌روز می‌شوند."
+        )
+
+    def clean_telegram_order_id(self):
+        telegram_order_id = self.cleaned_data["telegram_order_id"].strip()
+        if telegram_order_id.startswith("@"):
+            telegram_order_id = telegram_order_id[1:]
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{4,31}", telegram_order_id):
+            raise ValidationError(
+                "نام کاربری تلگرام باید ۵ تا ۳۲ حرف انگلیسی، عدد یا زیرخط باشد و با حرف شروع شود."
+            )
+        return telegram_order_id
+
+    def save(self, commit=True):
+        site = super().save(commit=False)
+        site.secondary_cta_link = site.telegram_order_link
+        site.footer_order_link = site.telegram_order_link
+        site.footer_order_text = site.telegram_order_username
+        if commit:
+            site.save()
+            self.save_m2m()
+        return site
 
 
 class AdminCreationForm(UserCreationForm):
@@ -97,6 +156,69 @@ class AdminCreationForm(UserCreationForm):
         return user
 
 
+class CustomerRegistrationForm(forms.Form):
+    name = forms.CharField(
+        label="نام و نام خانوادگی",
+        max_length=120,
+        widget=forms.TextInput(attrs={"class": "field", "autocomplete": "name"}),
+    )
+    email = forms.EmailField(
+        label="ایمیل",
+        widget=forms.EmailInput(attrs={"class": "field", "autocomplete": "email", "dir": "ltr"}),
+    )
+    phone = forms.CharField(
+        label="شماره موبایل",
+        max_length=20,
+        widget=forms.TextInput(attrs={"class": "field", "autocomplete": "tel", "inputmode": "tel", "dir": "ltr"}),
+    )
+    password1 = forms.CharField(
+        label="رمز عبور",
+        widget=forms.PasswordInput(attrs={"class": "field", "autocomplete": "new-password", "dir": "ltr"}),
+    )
+    password2 = forms.CharField(
+        label="تکرار رمز عبور",
+        widget=forms.PasswordInput(attrs={"class": "field", "autocomplete": "new-password", "dir": "ltr"}),
+    )
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        user_model = get_user_model()
+        if user_model.objects.filter(email__iexact=email).exists() or user_model.objects.filter(username__iexact=email).exists():
+            raise ValidationError("این ایمیل قبلاً ثبت شده است.")
+        return email
+
+    def clean_phone(self):
+        phone = normalize_phone(self.cleaned_data["phone"])
+        if len(phone) < 4 or not phone.lstrip("+").isdigit():
+            raise ValidationError("شماره موبایل معتبر وارد کنید.")
+        if CustomerProfile.objects.filter(phone=phone).exists():
+            raise ValidationError("این شماره موبایل قبلاً ثبت شده است.")
+        return phone
+
+    def clean_password1(self):
+        password = self.cleaned_data["password1"]
+        validate_password(password)
+        return password
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password1 = cleaned_data.get("password1")
+        password2 = cleaned_data.get("password2")
+        if password1 and password2 and password1 != password2:
+            self.add_error("password2", "رمزهای عبور یکسان نیستند.")
+        return cleaned_data
+
+    def save(self):
+        user = get_user_model().objects.create_user(
+            username=self.cleaned_data["email"],
+            email=self.cleaned_data["email"],
+            first_name=self.cleaned_data["name"].strip(),
+            password=self.cleaned_data["password1"],
+        )
+        CustomerProfile.objects.create(user=user, phone=self.cleaned_data["phone"])
+        return user
+
+
 class OrderForm(forms.ModelForm):
     class Meta:
         model = Order
@@ -108,11 +230,7 @@ class OrderForm(forms.ModelForm):
         }
 
     def clean_phone(self):
-        phone = self.cleaned_data["phone"].translate(str.maketrans(
-            "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩",
-            "01234567890123456789",
-        ))
-        phone = "".join(character for character in phone if character not in " -()")
+        phone = normalize_phone(self.cleaned_data["phone"])
         if len(phone) < 4 or not phone.lstrip("+").isdigit():
             raise ValidationError("شماره تلفن معتبر وارد کنید.")
         return phone
@@ -198,6 +316,11 @@ class CategoryForm(forms.ModelForm):
 
 
 class ProductForm(forms.ModelForm):
+    additional_images = MultipleImageField(
+        label="تصاویر بیشتر محصول",
+        required=False,
+        widget=MultipleImageInput(attrs={"accept": "image/*"}),
+    )
     discount_enabled = forms.BooleanField(label="اعمال تخفیف روی این محصول", required=False)
     discount_percent = forms.IntegerField(
         label="درصد تخفیف",

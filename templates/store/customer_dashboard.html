@@ -1,0 +1,60 @@
+{% extends 'store/base.html' %}
+{% block title %}پلن مشتریان | آسمان شب{% endblock %}
+{% block content %}
+<main class="customer-page wrap">
+  {% if messages %}<div class="messages">{% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+  <div class="customer-heading">
+    <div>
+      <p class="customer-eyebrow">حساب کاربری شما</p>
+      <h1>{{ request.user.get_full_name|default:request.user.email }} عزیز خوش آمدی</h1>
+      <p class="note">{{ request.user.email }} · <span dir="ltr">{{ profile.phone }}</span></p>
+    </div>
+    <div class="customer-actions">
+      <a class="btn ghost customer-favorites" href="{% url 'home' %}?favorites=1#shop" aria-label="علاقه‌مندی‌های من">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>
+        <span>علاقه‌مندی‌های من</span>
+      </a>
+      <a class="btn ghost" href="{% url 'home' %}#shop">مشاهده محصولات</a>
+      <a class="btn ghost" href="{% url 'logout' %}">خروج از حساب</a>
+    </div>
+  </div>
+
+  <section class="customer-orders">
+    <div class="hd"><h2>سفارش‌های من</h2><span class="note">{{ orders|length }} سفارش</span></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>شماره سفارش</th><th>محصول‌ها</th><th>مبلغ</th><th>وضعیت</th><th>زمان ثبت</th></tr></thead>
+        <tbody>
+          {% for order in orders %}
+          <tr>
+            <td data-label="شماره سفارش">#{{ order.pk }}</td>
+            <td data-label="محصول‌ها">{% for item in order.items.all %}<div>{{ item.product.name }}{% if item.variant_name %} ({{ item.variant_name }}){% endif %} × {{ item.quantity }}</div>{% empty %}—{% endfor %}</td>
+            <td data-label="مبلغ">{{ order.total_amount|floatformat:0 }} تومان</td>
+            <td data-label="وضعیت"><span class="bd {{ order.status }}">{{ order.get_status_display }}</span></td>
+            <td data-label="زمان ثبت">{{ order.created_at|date:'Y/m/d H:i' }}</td>
+          </tr>
+          {% empty %}
+          <tr class="empty-row"><td colspan="5">هنوز سفارشی با شماره موبایل این حساب ثبت نشده است. سفارش‌های ثبت‌شده با شماره شما در این بخش نمایش داده می‌شوند.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <details class="customer-password">
+    <summary>تغییر رمز عبور</summary>
+    <form method="post" class="register-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="password_change">
+      {% for field in password_form %}
+      <label for="{{ field.id_for_label }}">{{ field.label }}{{ field }}
+        {% if field.help_text %}<span class="note">{{ field.help_text|safe }}</span>{% endif %}
+        {% for error in field.errors %}<span class="err">{{ error }}</span>{% endfor %}
+      </label>
+      {% endfor %}
+      {% if password_form.non_field_errors %}<div class="err">{{ password_form.non_field_errors }}</div>{% endif %}
+      <button class="btn">ذخیره رمز جدید</button>
+    </form>
+  </details>
+</main>
+{% endblock %}

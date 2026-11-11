@@ -1,13 +1,24 @@
-from django.contrib.auth import get_user_model
-from django.test import TestCase
-from django.urls import reverse
+from io import BytesIO
+from pathlib import Path
+import tempfile
 
-from .models import Category, Order, OrderItem, Product, ProductVariant, SiteSettings
-from .forms import SiteSettingsForm
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
+from django.urls import reverse
+from PIL import Image
+
+from .models import Category, CustomerProfile, Order, OrderItem, Product, ProductVariant, SiteSettings
+from .forms import CustomerRegistrationForm, SiteSettingsForm
 
 
 class ProductVariantTests(TestCase):
     def setUp(self):
+        self.media_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.media_directory.cleanup)
+        media_settings = override_settings(MEDIA_ROOT=self.media_directory.name)
+        media_settings.enable()
+        self.addCleanup(media_settings.disable)
         self.user = get_user_model().objects.create_user(username="manager", password="test-password")
         self.category = Category.objects.create(name="تابلو", slug="تابلو")
         self.client.force_login(self.user)
@@ -31,6 +42,76 @@ class ProductVariantTests(TestCase):
         }
         data.update(overrides)
         return data
+
+    def image_upload(self, name):
+        image_bytes = BytesIO()
+        Image.new("RGB", (2, 2), color="white").save(image_bytes, format="PNG")
+        return SimpleUploadedFile(name, image_bytes.getvalue(), content_type="image/png")
+
+    def test_product_gallery_images_upload_and_appear_in_product_api(self):
+        response = self.client.post(
+            reverse("product_add"),
+            self.product_data(
+                image=self.image_upload("main.png"),
+                additional_images=[
+                    self.image_upload("gallery-one.png"),
+                    self.image_upload("gallery-two.png"),
+                ],
+            ),
+        )
+
+        self.assertRedirects(response, reverse("product_list"))
+        product = Product.objects.get(name="تابلو ماه")
+        self.assertEqual(product.gallery_images.count(), 2)
+        api_response = self.client.get(reverse("products_api"))
+        product_data = api_response.json()["products"][0]
+        self.assertEqual(len(product_data["gallery_images"]), 2)
+        self.assertTrue(product_data["image_url"].endswith("/main.png"))
+
+    def test_product_gallery_images_can_be_removed_in_product_editor(self):
+        product = Product.objects.create(
+            name="تابلو ماه",
+            category=self.category,
+            price=100000,
+            stock=5,
+        )
+        gallery_image = product.gallery_images.create(image=self.image_upload("gallery.png"))
+        image_path = Path(gallery_image.image.path)
+
+        response = self.client.post(
+            reverse("product_edit", args=[product.pk]),
+            self.product_data(
+                name=product.name,
+                additional_images=[],
+                remove_images=[str(gallery_image.pk)],
+                **{
+                    "variants-0-size": "",
+                    "variants-0-price": "",
+                    "variants-1-size": "",
+                    "variants-1-price": "",
+                },
+            ),
+        )
+
+        self.assertRedirects(response, reverse("product_list"))
+        self.assertFalse(product.gallery_images.exists())
+        self.assertFalse(image_path.exists())
+
+    def test_deleting_product_removes_its_gallery_files(self):
+        product = Product.objects.create(
+            name="تابلو ماه",
+            category=self.category,
+            price=100000,
+            stock=5,
+        )
+        gallery_image = product.gallery_images.create(image=self.image_upload("gallery.png"))
+        image_path = Path(gallery_image.image.path)
+
+        response = self.client.post(reverse("product_delete", args=[product.pk]))
+
+        self.assertRedirects(response, reverse("product_list"))
+        self.assertFalse(Product.objects.filter(pk=product.pk).exists())
+        self.assertFalse(image_path.exists())
 
     def test_saves_and_exposes_individually_priced_sizes(self):
         response = self.client.post(reverse("product_add"), self.product_data())
@@ -227,6 +308,47 @@ class AdminAccountTests(TestCase):
         self.assertContains(home, "--inspiration-text-color: #abcdef")
         self.assertNotContains(home, "inspiration-card--hatched")
 
+    def test_primary_admin_can_change_telegram_order_username(self):
+        site = SiteSettings.get()
+        data = {
+            name: getattr(site, name)
+            for name in SiteSettingsForm.Meta.fields
+            if name != "hero_image"
+        }
+        data["telegram_order_id"] = "@new_order_account"
+        data["secondary_cta_link"] = "https://t.me/old_order_account"
+        data["footer_order_link"] = "https://t.me/old_order_account"
+        data["footer_order_text"] = "@old_order_account"
+
+        response = self.client.post(reverse("site_settings"), data)
+
+        self.assertRedirects(response, reverse("site_settings"))
+        site.refresh_from_db()
+        self.assertEqual(site.telegram_order_id, "new_order_account")
+        self.assertEqual(site.secondary_cta_link, "https://t.me/new_order_account")
+        self.assertEqual(site.footer_order_link, "https://t.me/new_order_account")
+        self.assertEqual(site.footer_order_text, "@new_order_account")
+        home = self.client.get(reverse("home"))
+        self.assertContains(home, 'data-telegram-order-id="new_order_account"')
+        self.assertContains(home, 'href="https://t.me/new_order_account"')
+        self.assertEqual(home.content.count(b'href="https://t.me/new_order_account"'), 2)
+
+    def test_primary_admin_cannot_save_invalid_telegram_order_username(self):
+        site = SiteSettings.get()
+        data = {
+            name: getattr(site, name)
+            for name in SiteSettingsForm.Meta.fields
+            if name != "hero_image"
+        }
+        data["telegram_order_id"] = "not a valid username"
+
+        response = self.client.post(reverse("site_settings"), data)
+
+        self.assertEqual(response.status_code, 200)
+        site.refresh_from_db()
+        self.assertEqual(site.telegram_order_id, "tablo_aseman_shab")
+        self.assertContains(response, "نام کاربری تلگرام باید")
+
     def test_inspiration_colors_accept_rgb_values(self):
         site = SiteSettings.get()
         data = {
@@ -346,6 +468,147 @@ class AdminAccountTests(TestCase):
         self.assertRedirects(response, reverse("password_change"))
         assistant.refresh_from_db()
         self.assertTrue(assistant.check_password("Assistant-Changed-Password-947!"))
+
+
+class CustomerAccountTests(TestCase):
+    def register(self, **overrides):
+        data = {
+            "name": "مریم رضایی",
+            "email": "maryam@example.com",
+            "phone": "۰۹۱۲ ۳۴۵ ۶۷۸۹",
+            "password1": "Customer-Strong-Password-847!",
+            "password2": "Customer-Strong-Password-847!",
+        }
+        data.update(overrides)
+        return self.client.post(reverse("customer_register"), data)
+
+    def test_registration_creates_customer_and_logs_in(self):
+        response = self.register()
+
+        self.assertRedirects(response, reverse("customer_dashboard"))
+        user = get_user_model().objects.get(email="maryam@example.com")
+        self.assertTrue(user.check_password("Customer-Strong-Password-847!"))
+        self.assertEqual(user.customer_profile.phone, "09123456789")
+        self.assertContains(self.client.get(reverse("customer_dashboard")), "مریم رضایی عزیز خوش آمدی")
+
+    def test_customer_login_and_registration_are_separate_pages(self):
+        login_page = self.client.get(reverse("customer_login"))
+        register_page = self.client.get(reverse("customer_register"))
+
+        self.assertContains(login_page, "حساب کاربری ندارید؟ ثبت‌نام کنید")
+        self.assertNotContains(login_page, "تکرار رمز عبور")
+        self.assertContains(register_page, "ثبت‌نام مشتریان")
+        self.assertContains(register_page, "تکرار رمز عبور")
+        self.assertContains(register_page, "حساب کاربری دارید؟ وارد شوید")
+
+    def test_invalid_registration_stays_on_registration_page_with_errors(self):
+        response = self.client.post(reverse("customer_register"), {
+            "name": "مریم رضایی",
+            "email": "invalid",
+            "phone": "09123456789",
+            "password1": "Customer-Strong-Password-847!",
+            "password2": "Customer-Strong-Password-847!",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ثبت‌نام مشتریان")
+        self.assertContains(response, "یک ایمیل آدرس معتبر وارد کنید.")
+
+    def test_customer_dashboard_redirects_guests_to_customer_login(self):
+        response = self.client.get(reverse("customer_dashboard"))
+
+        self.assertRedirects(response, f"{reverse('customer_login')}?next={reverse('customer_dashboard')}")
+
+    def test_registration_rejects_duplicate_email_and_phone(self):
+        self.register()
+
+        duplicate_email = CustomerRegistrationForm({
+            "name": "مشتری دیگر",
+            "email": "MARYAM@example.com",
+            "phone": "09121111111",
+            "password1": "Another-Strong-Password-847!",
+            "password2": "Another-Strong-Password-847!",
+        })
+        duplicate_phone = CustomerRegistrationForm({
+            "name": "مشتری دیگر",
+            "email": "another@example.com",
+            "phone": "۰۹۱۲۳۴۵۶۷۸۹",
+            "password1": "Another-Strong-Password-847!",
+            "password2": "Another-Strong-Password-847!",
+        })
+
+        self.assertFalse(duplicate_email.is_valid())
+        self.assertIn("email", duplicate_email.errors)
+        self.assertFalse(duplicate_phone.is_valid())
+        self.assertIn("phone", duplicate_phone.errors)
+
+    def test_customer_can_login_with_email_or_phone(self):
+        self.register()
+        self.client.logout()
+
+        email_response = self.client.post(reverse("customer_login"), {
+            "action": "login",
+            "identifier": "MARYAM@example.com",
+            "password": "Customer-Strong-Password-847!",
+        })
+        self.assertRedirects(email_response, reverse("customer_dashboard"))
+        self.client.logout()
+        phone_response = self.client.post(reverse("customer_login"), {
+            "action": "login",
+            "identifier": "۰۹۱۲۳۴۵۶۷۸۹",
+            "password": "Customer-Strong-Password-847!",
+        })
+
+        self.assertRedirects(phone_response, reverse("customer_dashboard"))
+
+    def test_customer_dashboard_shows_only_orders_for_account_phone(self):
+        self.register()
+        customer_order = Order.objects.create(
+            customer_name="مریم رضایی",
+            phone="09123456789",
+            address="تهران",
+        )
+        other_order = Order.objects.create(
+            customer_name="مشتری دیگر",
+            phone="09120000000",
+            address="شیراز",
+        )
+
+        response = self.client.get(reverse("customer_dashboard"))
+
+        self.assertContains(response, f"#{customer_order.pk}")
+        self.assertNotContains(response, f"#{other_order.pk}")
+        self.assertContains(response, "تغییر رمز عبور")
+        self.assertContains(response, "علاقه‌مندی‌های من")
+
+    def test_customer_cannot_open_management_pages(self):
+        self.register()
+
+        for page in ("dashboard", "product_list", "order_list", "password_change"):
+            with self.subTest(page=page):
+                self.assertEqual(self.client.get(reverse(page)).status_code, 403)
+
+    def test_customer_can_change_password_without_losing_session(self):
+        self.register()
+
+        response = self.client.post(reverse("customer_dashboard"), {
+            "action": "password_change",
+            "old_password": "Customer-Strong-Password-847!",
+            "new_password1": "Customer-Changed-Password-947!",
+            "new_password2": "Customer-Changed-Password-947!",
+        })
+
+        self.assertRedirects(response, reverse("customer_dashboard"))
+        user = get_user_model().objects.get(email="maryam@example.com")
+        self.assertTrue(user.check_password("Customer-Changed-Password-947!"))
+        self.assertEqual(self.client.get(reverse("customer_dashboard")).status_code, 200)
+
+    def test_homepage_account_icon_links_to_customer_login(self):
+        response = self.client.get(reverse("home"))
+
+        self.assertContains(response, reverse("customer_login"))
+        self.assertNotContains(response, 'id="wl"')
+        self.assertContains(response, 'id="favorites-toggle"')
 
 
 class ManualOrderTests(TestCase):

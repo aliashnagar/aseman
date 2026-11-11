@@ -11,7 +11,7 @@
     <p>{{ site.hero_text|default:'تابلوهای هوشمند، گل‌های مخملی، چراغ خواب و هدیه‌های آماده. هر چیزی که شب‌های خانه‌تان را آرام‌تر می‌کند.' }}</p>
     <div class="cta">
       <a class="btn" href="{{ site.primary_cta_link|default:'#shop' }}">{{ site.primary_cta_text|default:'مشاهده محصولات' }}</a>
-      <a class="btn ghost" href="{{ site.secondary_cta_link|default:'https://t.me/tablo_aseman_shab' }}" target="_blank" rel="noopener">{{ site.secondary_cta_text|default:'ثبت سفارش در تلگرام' }}</a>
+      <a class="btn ghost" href="{{ site.telegram_order_link }}" target="_blank" rel="noopener">{{ site.secondary_cta_text|default:'ثبت سفارش در تلگرام' }}</a>
     </div>
   </div>
 
@@ -29,6 +29,7 @@
           <option value="1">ارزان‌ترین</option>
           <option value="2">گران‌ترین</option>
         </select>
+        <button class="btn ghost" id="favorites-toggle" type="button" hidden>فقط علاقه‌مندی‌ها</button>
       </div>
       <div class="grid" id="grid" aria-live="polite"></div>
     </div>
@@ -81,7 +82,7 @@
 <footer id="contact">
   <div class="wrap">
     <div><span class="logo">{{ site.footer_brand|default:'آسمان شب' }}</span>{{ site.footer_text|default:'تابلو، گل و هدیه. ارسال به سراسر کشور.' }}</div>
-    <div>{{ site.footer_order_label|default:'ثبت سفارش:' }} <a href="{{ site.footer_order_link|default:'https://t.me/tablo_aseman_shab' }}" target="_blank" rel="noopener" dir="ltr">{{ site.footer_order_text|default:'@tablo_aseman_shab' }}</a><br>{{ site.footer_channel_label|default:'کانال تلگرام:' }} <a href="{{ site.footer_channel_link|default:'https://t.me/aseman_shab_ir' }}" target="_blank" rel="noopener" dir="ltr">{{ site.footer_channel_text|default:'aseman_shab_ir' }}</a></div>
+    <div>{{ site.footer_order_label|default:'ثبت سفارش:' }} <a href="{{ site.telegram_order_link }}" target="_blank" rel="noopener" dir="ltr">{{ site.telegram_order_username }}</a><br>{{ site.footer_channel_label|default:'کانال تلگرام:' }} <a href="{{ site.footer_channel_link|default:'https://t.me/aseman_shab_ir' }}" target="_blank" rel="noopener" dir="ltr">{{ site.footer_channel_text|default:'aseman_shab_ir' }}</a></div>
   </div>
 </footer>
 {% endblock %}
@@ -102,7 +103,7 @@
     <input class="field" id="fp" placeholder="شماره تماس" inputmode="tel" autocomplete="tel">
     <textarea class="field" id="fa" placeholder="شهر و آدرس کامل"></textarea>
     <p class="err" id="er" role="alert"></p>
-    <button class="btn" id="go" type="button">ارسال سفارش در تلگرام</button>
+    <button class="btn" id="go" type="button" data-telegram-order-id="{{ site.telegram_order_id }}">ارسال سفارش در تلگرام</button>
     <p class="note">هزینه ارسال و پرداخت در گفتگوی تلگرام نهایی می‌شود.</p>
   </div>
 </aside>
@@ -111,5 +112,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'store/js/store.js' %}" defer></script>
+<script src="{% static 'store/js/store.js' %}?v=4" defer></script>
 {% endblock %}

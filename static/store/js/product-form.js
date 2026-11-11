@@ -1,5 +1,7 @@
 const imageInput = document.querySelector('#id_image');
 const preview = document.querySelector('#image-preview');
+const additionalImagesInput = document.querySelector('#id_additional_images');
+const galleryPreview = document.querySelector('#gallery-preview');
 const discountToggle = document.querySelector('#id_discount_enabled');
 const discountPercent = document.querySelector('#id_discount_percent');
 const variantRows = document.querySelector('#variant-rows');
@@ -18,6 +20,20 @@ imageInput?.addEventListener('change', () => {
     preview.hidden = false;
   });
   reader.readAsDataURL(file);
+});
+
+additionalImagesInput?.addEventListener('change', () => {
+  galleryPreview.replaceChildren();
+  Array.from(additionalImagesInput.files || []).forEach(file => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      const image = new Image();
+      image.alt = `پیش‌نمایش ${file.name}`;
+      image.src = reader.result;
+      galleryPreview.append(image);
+    });
+    reader.readAsDataURL(file);
+  });
 });
 
 discountToggle?.addEventListener('change', () => {

@@ -113,6 +113,20 @@ footer a{border-bottom:1px solid var(--line)}
 .err{color:#e59a9a;font-size:13px;min-height:1.2em;margin:0}
 dialog{width:min(820px,94vw);max-height:92vh;overflow:auto;padding:0;border:1px solid var(--line);border-radius:2px;background:var(--night);color:var(--moon)}
 dialog::backdrop{background:rgba(5,8,26,.7)}
+.pd{position:relative}
+.dialog-close{position:absolute;top:10px;inset-inline-end:10px;z-index:2;width:38px;height:38px;border:1px solid var(--line);border-radius:50%;background:rgba(5,6,10,.78);color:var(--moon);font-size:26px;line-height:1}
+.product-gallery{position:relative;display:grid;place-items:center;min-height:220px;overflow:hidden;background:#000}
+.product-gallery-image{display:grid;place-items:center;width:100%;height:100%;min-height:220px}
+.product-gallery-image img{display:block;width:100%;max-height:58vh;object-fit:contain}
+.gallery-arrow{position:absolute;top:50%;display:grid;place-items:center;width:40px;height:40px;transform:translateY(-50%);border:1px solid var(--line);border-radius:50%;background:rgba(5,6,10,.78);color:var(--moon);font-size:28px;line-height:1}
+.gallery-previous{inset-inline-start:12px}
+.gallery-next{inset-inline-end:12px}
+.gallery-counter{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);padding:2px 10px;border-radius:20px;background:rgba(5,6,10,.78);font-size:12px}
+.gallery-preview,.gallery-admin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;margin-top:12px}
+.gallery-preview img,.gallery-admin-image img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid var(--line)}
+.gallery-admin-image{display:grid;gap:4px;font-size:12px}
+.gallery-admin-image span{display:flex;align-items:center;gap:6px}
+.gallery-admin-image input{accent-color:var(--moon)}
 .pd{position:relative;display:grid;grid-template-columns:.85fr 1.15fr;gap:30px;padding:28px}
 .pd .art{cursor:default}
 .pd h2{font-size:38px;text-align:start}
@@ -149,6 +163,39 @@ dialog::backdrop{background:rgba(5,8,26,.7)}
 .lg .hint{font-size:12px}
 .back{justify-self:center;border-bottom:1px solid var(--line);font-size:13px;color:var(--mist)}
 .back:hover{color:var(--moon)}
+.customer-login-page{min-height:calc(100vh - 78px)}
+.customer-auth{display:grid;gap:18px;width:min(470px,calc(100vw - 40px));min-width:0}
+.customer-auth .lg{width:100%}
+.customer-registration-form{min-width:0;grid-template-columns:minmax(0,1fr)}
+.customer-registration-form label{display:grid;min-width:0;gap:5px;text-align:start;font-size:13px}
+.customer-registration-form .field{box-sizing:border-box;width:100%;max-width:100%;min-width:0}
+.register-form{display:grid;gap:12px;padding:20px;border-top:1px solid var(--line)}
+.register-form h2{margin:0;text-align:start;font-size:26px}
+.register-form h2::after{display:none}
+.register-form p{margin:0;color:var(--mist);font-size:13px}
+.register-form label{display:grid;min-width:0;gap:5px;text-align:start;font-size:13px}
+.register-form .field{box-sizing:border-box;width:100%;max-width:100%;min-width:0;padding:9px 14px}
+.register-form .err{color:#e59a9a;font-size:12px}
+.customer-page{max-width:1060px;padding-top:48px;padding-bottom:70px}
+.customer-heading{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;padding:24px 0 30px;border-bottom:1px solid var(--line)}
+.customer-heading h1{margin:0;font-size:36px;line-height:1.6}
+.customer-heading .note{margin:3px 0 0}
+.customer-eyebrow{margin:0;color:var(--mist);font-size:13px}
+.customer-actions{display:flex;gap:10px;flex-wrap:wrap}
+.customer-actions .btn{padding:8px 16px}
+.customer-favorites{display:flex;align-items:center;gap:8px}
+.customer-favorites svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6}
+.customer-orders{padding:28px 0}
+.customer-orders .hd{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.customer-orders .hd h2{margin:0;text-align:start;font-size:28px}
+.customer-orders .hd h2::after{display:none}
+.customer-orders .tw{overflow-x:auto;border:1px solid var(--line);background:rgba(255,255,255,.025)}
+.customer-orders table{width:100%;border-collapse:collapse;min-width:660px}
+.customer-orders th,.customer-orders td{padding:12px;text-align:right;border-bottom:1px solid var(--line)}
+.customer-orders th{color:var(--mist);font-weight:500;font-size:13px}
+.customer-orders .empty-row td{color:var(--mist);text-align:center;padding:24px}
+.customer-password{margin-top:8px}
+.customer-password .register-form{max-width:620px}
 
 /* Dashboard */
 #admin-app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}

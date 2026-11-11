@@ -2,6 +2,9 @@ import re
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.signals import pre_delete
+from django.conf import settings
+from django.dispatch import receiver
 
 
 def validate_css_color(value):
@@ -49,6 +52,37 @@ class Product(models.Model):
     def price_range(self):
         prices = [variant.price for variant in self.variants.all()]
         return (min(prices), max(prices)) if prices else None
+
+
+class ProductImage(models.Model):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="gallery_images",
+        verbose_name="محصول",
+    )
+    image = models.ImageField("تصویر", upload_to="products/gallery/")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "تصویر گالری محصول"
+        verbose_name_plural = "تصاویر گالری محصول"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"تصویر گالری {self.product.name} #{self.pk}"
+
+
+@receiver(pre_delete, sender=ProductImage)
+def delete_product_gallery_file(sender, instance, **kwargs):
+    if instance.image:
+        instance.image.delete(save=False)
+
+
+@receiver(pre_delete, sender=Product)
+def delete_product_main_image_file(sender, instance, **kwargs):
+    if instance.image:
+        instance.image.delete(save=False)
 
 
 class ProductVariant(models.Model):
@@ -103,6 +137,11 @@ class SiteSettings(models.Model):
     footer_brand = models.CharField("نام برند فوتر", max_length=80, default="آسمان شب")
     footer_text = models.TextField("متن فوتر", default="تابلو، گل و هدیه. ارسال به سراسر کشور.")
     footer_order_label = models.CharField("برچسب ثبت سفارش", max_length=40, default="ثبت سفارش:")
+    telegram_order_id = models.CharField(
+        "شناسه تلگرام ثبت سفارش",
+        max_length=32,
+        default="tablo_aseman_shab",
+    )
     footer_order_text = models.CharField("نام کاربری سفارش", max_length=80, default="@tablo_aseman_shab")
     footer_order_link = models.CharField("لینک سفارش", max_length=200, default="https://t.me/tablo_aseman_shab")
     footer_channel_label = models.CharField("برچسب کانال", max_length=40, default="کانال تلگرام:")
@@ -114,6 +153,14 @@ class SiteSettings(models.Model):
         verbose_name_plural = "تنظیمات سایت"
 
     def __str__(self): return self.brand_name
+
+    @property
+    def telegram_order_link(self):
+        return f"https://t.me/{self.telegram_order_id}"
+
+    @property
+    def telegram_order_username(self):
+        return f"@{self.telegram_order_id}"
 
     @classmethod
     def get(cls):
@@ -129,6 +176,22 @@ class PageView(models.Model):
     class Meta:
         verbose_name = "بازدید صفحه"
         verbose_name_plural = "بازدیدهای صفحه"
+
+
+class CustomerProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="customer_profile",
+    )
+    phone = models.CharField("تلفن", max_length=20, unique=True)
+
+    class Meta:
+        verbose_name = "حساب مشتری"
+        verbose_name_plural = "حساب‌های مشتری"
+
+    def __str__(self):
+        return self.user.get_full_name() or self.user.email
 
 
 class Order(models.Model):

@@ -11,6 +11,7 @@
   <label class="field-wrap" for="{{ field.id_for_label }}">
     <span>{{ field.label }}</span>
     {{ field }}
+    {% if field.help_text %}<small class="note">{{ field.help_text }}</small>{% endif %}
     {% for error in field.errors %}<small class="err">{{ error }}</small>{% endfor %}
   </label>
 {% endif %}

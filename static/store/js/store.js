@@ -19,8 +19,9 @@ const readStorage = (key, fallback) => {
 const grid = $('#grid');
 const search = $('#q');
 const sort = $('#so');
+const favoritesToggle = $('#favorites-toggle');
 let products = [];
-let onlyWish = false;
+let onlyWish = new URLSearchParams(location.search).get('favorites') === '1';
 let cart = readStorage('as_cart', {});
 let wish = readStorage('as_wish', []);
 
@@ -131,8 +132,11 @@ function render() {
     : 'محصولی با این مشخصات پیدا نشد. عبارت جستجو را تغییر دهید.'}</p>`;
 
   $('#cn').textContent = Object.values(cart).reduce((total, quantity) => total + quantity, 0) || '';
-  $('#wn').textContent = wish.length || '';
-  $('#wl').setAttribute('aria-pressed', String(onlyWish));
+  if (favoritesToggle) {
+    favoritesToggle.hidden = false;
+    favoritesToggle.textContent = onlyWish ? 'نمایش همه محصولات' : 'فقط علاقه‌مندی‌ها';
+    favoritesToggle.setAttribute('aria-pressed', String(onlyWish));
+  }
 }
 
 function drawCart() {
@@ -209,9 +213,18 @@ function showProduct(id) {
   if (!product) return;
   const dialog = $('#dg');
   const variants = product.variants || [];
+  const images = [product.image_url, ...(product.gallery_images || [])].filter(Boolean);
   const firstVariant = variants[0];
   dialog.innerHTML = `<div class="pd">
-    <div class="art">${art(product)}</div>
+    <button class="dialog-close" type="button" data-close-dialog aria-label="بستن پنجره">×</button>
+    <div class="product-gallery">
+      <div class="product-gallery-image">${images.length
+        ? `<img src="${escapeHtml(images[0])}" alt="${escapeHtml(product.name)}" id="product-gallery-current">`
+        : '<span class="art-placeholder" aria-hidden="true">☾</span>'}</div>
+      ${images.length > 1 ? `<button class="gallery-arrow gallery-previous" type="button" data-gallery-step="-1" aria-label="تصویر قبلی">‹</button>
+        <button class="gallery-arrow gallery-next" type="button" data-gallery-step="1" aria-label="تصویر بعدی">›</button>
+        <span class="gallery-counter" aria-live="polite">۱ از ${fa(images.length)}</span>` : ''}
+    </div>
     <div>
       <h2>${escapeHtml(product.name)}</h2>
       ${variants.length
@@ -232,6 +245,14 @@ function showProduct(id) {
   dialog.querySelector('#selected-variant')?.addEventListener('change', event => {
     const variant = variantById(product, event.target.value);
     if (variant) dialog.querySelector('#selected-variant-price').innerHTML = variantPrice(variant);
+  });
+  let imageIndex = 0;
+  dialog.querySelectorAll('[data-gallery-step]').forEach(button => {
+    button.addEventListener('click', () => {
+      imageIndex = (imageIndex + Number(button.dataset.galleryStep) + images.length) % images.length;
+      dialog.querySelector('#product-gallery-current').src = images[imageIndex];
+      dialog.querySelector('.gallery-counter').textContent = `${fa(imageIndex + 1)} از ${fa(images.length)}`;
+    });
   });
   dialog.showModal();
 }
@@ -288,9 +309,9 @@ document.addEventListener('click', event => {
       : addToCart(button.dataset.add);
     if (added) {
       toast('به سبد خرید اضافه شد');
-      if (button.hasAttribute('data-close-dialog')) $('#dg').close();
     }
   }
+  if (button.hasAttribute('data-close-dialog')) $('#dg').close();
   if (button.dataset.productDetail) showProduct(button.dataset.productDetail);
   if (button.dataset.wish) {
     const id = Number(button.dataset.wish);
@@ -314,12 +335,13 @@ document.addEventListener('click', event => {
   }
   if (button.id === 'cb') setDrawer(true);
   if (button.id === 'dc') setDrawer(false);
-  if (button.id === 'wl') {
+  if (button.id === 'favorites-toggle') {
     onlyWish = !onlyWish;
-    $('#shop').scrollIntoView();
+    const url = new URL(location.href);
+    if (onlyWish) url.searchParams.set('favorites', '1');
+    else url.searchParams.delete('favorites');
+    history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
     render();
-    updateUrl();
-    toast(onlyWish ? 'فقط علاقه‌مندی‌ها' : 'همه محصولات');
   }
 });
 
@@ -328,7 +350,10 @@ $('#dg')?.addEventListener('click', event => {
   if (event.target === $('#dg')) $('#dg').close();
 });
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape') setDrawer(false);
+  if (event.key === 'Escape') {
+    setDrawer(false);
+    if ($('#dg')?.open) $('#dg').close();
+  }
 });
 
 $('#go')?.addEventListener('click', () => {
@@ -361,7 +386,8 @@ $('#go')?.addEventListener('click', () => {
     return `• ${product.name}${variant ? ` (${variant.size})` : ''} × ${fa(quantity)} = ${money(subtotal)}`;
   });
   const message = `سلام، سفارش جدید از سایت آسمان شب:\n${lines.join('\n')}\nجمع کل: ${money(total)}\n\nنام: ${name}\nتلفن: ${phone}\nآدرس: ${address}`;
-  window.open(`https://t.me/tablo_aseman_shab?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
+  const telegramOrderId = $('#go').dataset.telegramOrderId;
+  window.open(`https://t.me/${encodeURIComponent(telegramOrderId)}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
 });
 
 const canvas = $('#sky');

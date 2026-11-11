@@ -60,6 +60,28 @@
       {% if product and product.image %}
       <label class="inline-check"><input type="checkbox" name="clear_image" value="1"><span>حذف تصویر فعلی</span></label>
       {% endif %}
+      <section class="variant-section" aria-labelledby="gallery-heading">
+        <div class="variant-heading">
+          <div>
+            <h3 id="gallery-heading">گالری تصاویر</h3>
+            <p class="note">تصویر اصلی در فهرست محصولات نمایش داده می‌شود؛ تصاویر این بخش در پنجرهٔ جزئیات قابل پیمایش هستند.</p>
+          </div>
+        </div>
+        <label for="{{ form.additional_images.id_for_label }}">{{ form.additional_images.label }}{{ form.additional_images }}
+          {% for error in form.additional_images.errors %}<span class="err">{{ error }}</span>{% endfor %}
+        </label>
+        <div class="gallery-preview" id="gallery-preview"></div>
+        {% if gallery_images %}
+        <div class="gallery-admin-grid">
+          {% for gallery_image in gallery_images %}
+          <label class="gallery-admin-image">
+            <img src="{{ gallery_image.image.url }}" alt="تصویر گالری محصول">
+            <span><input type="checkbox" name="remove_images" value="{{ gallery_image.pk }}"> حذف تصویر</span>
+          </label>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </section>
       <label class="inline-check" for="{{ form.discount_enabled.id_for_label }}">{{ form.discount_enabled }}<span>{{ form.discount_enabled.label }}</span></label>
       {% for error in form.discount_enabled.errors %}<span class="err">{{ error }}</span>{% endfor %}
       <label for="{{ form.discount_percent.id_for_label }}">{{ form.discount_percent.label }}{{ form.discount_percent }}
@@ -72,4 +94,4 @@
   </main>
 </div>
 {% endblock %}
-{% block scripts %}<script src="{% static 'store/js/product-form.js' %}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'store/js/product-form.js' %}?v=2" defer></script>{% endblock %}

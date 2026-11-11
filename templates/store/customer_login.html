@@ -1,0 +1,19 @@
+{% extends 'store/base.html' %}
+{% block title %}ورود مشتریان | آسمان شب{% endblock %}
+{% block content %}
+<main class="login-page customer-login-page">
+  <div class="customer-auth">
+    <form method="post" class="lg">
+      {% csrf_token %}
+      <h1>حساب مشتریان</h1>
+      <p>برای دیدن سفارش‌ها و وضعیت آن‌ها وارد شوید.</p>
+      {% if login_error %}<p class="err" role="alert">{{ login_error }}</p>{% endif %}
+      <input class="field" name="identifier" autocomplete="username" aria-label="ایمیل یا شماره موبایل" required placeholder="ایمیل یا شماره موبایل" dir="ltr">
+      <input class="field" name="password" type="password" autocomplete="current-password" aria-label="رمز عبور" required placeholder="رمز عبور" dir="ltr">
+      <button class="btn">ورود</button>
+      <a class="back" href="{% url 'customer_register' %}">حساب کاربری ندارید؟ ثبت‌نام کنید</a>
+      <a class="back" href="{% url 'home' %}">بازگشت به فروشگاه</a>
+    </form>
+  </div>
+</main>
+{% endblock %}
