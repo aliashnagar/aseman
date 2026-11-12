@@ -21,6 +21,7 @@ from .forms import (
     OrderItemFormSetFactory,
     ProductForm,
     ProductVariantFormSetFactory,
+    SocialLinkFormSetFactory,
     normalize_phone,
 )
 from .forms import SiteSettingsForm
@@ -62,13 +63,27 @@ def site_settings_edit(request):
         raise PermissionDenied
     site = SiteSettings.get()
     form = SiteSettingsForm(request.POST or None, request.FILES or None, instance=site)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "تنظیمات سایت با موفقیت ذخیره شد.")
-        return redirect("site_settings")
+    social_formset = SocialLinkFormSetFactory(
+        request.POST or None,
+        instance=site,
+        prefix="footer_socials",
+    )
+    if request.method == "POST":
+        if form.is_valid() and social_formset.is_valid():
+            with transaction.atomic():
+                form.save()
+                social_formset.instance = site
+                social_formset.save()
+            messages.success(request, "تنظیمات سایت با موفقیت ذخیره شد.")
+            return redirect("site_settings")
     if request.method not in ("GET", "POST"):
         return HttpResponseNotAllowed(["GET", "POST"])
-    return render(request, "store/site_settings.html", {"form": form, "site": site, "active_page": "site"})
+    return render(request, "store/site_settings.html", {
+        "form": form,
+        "social_formset": social_formset,
+        "site": site,
+        "active_page": "site",
+    })
 
 
 def products_api(request):

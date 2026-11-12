@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
-from .models import Category, CustomerProfile, Order, OrderItem, Product, ProductVariant, SiteSettings
+from .models import Category, CustomerProfile, Order, OrderItem, Product, ProductVariant, SiteSettings, SocialLink
 from .forms import CustomerRegistrationForm, SiteSettingsForm
 
 
@@ -263,6 +263,20 @@ class AdminAccountTests(TestCase):
         )
         self.client.force_login(self.user)
 
+    def settings_data(self, site):
+        data = {
+            name: getattr(site, name)
+            for name in SiteSettingsForm.Meta.fields
+            if name != "hero_image"
+        }
+        data.update({
+            "footer_socials-TOTAL_FORMS": "0",
+            "footer_socials-INITIAL_FORMS": "0",
+            "footer_socials-MIN_NUM_FORMS": "0",
+            "footer_socials-MAX_NUM_FORMS": "20",
+        })
+        return data
+
     def test_primary_admin_pages_render_account_controls(self):
         admins = self.client.get(reverse("admin_manage"))
         password = self.client.get(reverse("password_change"))
@@ -279,14 +293,12 @@ class AdminAccountTests(TestCase):
         self.assertContains(site_settings, "رنگ نوشته کارت‌ها")
         self.assertContains(site_settings, 'data-color-picker-for="id_inspiration_card_color"')
         self.assertContains(site_settings, 'data-color-picker-for="id_inspiration_text_color"')
+        self.assertContains(site_settings, 'id="add-footer-social"')
+        self.assertContains(site_settings, "توضیح زیر نام سایت در فوتر")
 
     def test_primary_admin_can_customize_inspiration_cards(self):
         site = SiteSettings.get()
-        data = {
-            name: getattr(site, name)
-            for name in SiteSettingsForm.Meta.fields
-            if name != "hero_image"
-        }
+        data = self.settings_data(site)
         data.update({
             "inspiration_card_1": "A little joy, made for you.",
             "inspiration_card_color": "#123456",
@@ -310,15 +322,12 @@ class AdminAccountTests(TestCase):
 
     def test_primary_admin_can_save_order_username_and_links_independently(self):
         site = SiteSettings.get()
-        data = {
-            name: getattr(site, name)
-            for name in SiteSettingsForm.Meta.fields
-            if name != "hero_image"
-        }
+        data = self.settings_data(site)
         data["telegram_order_id"] = "@new_order_account"
         data["secondary_cta_link"] = "https://t.me/cta_order_account"
         data["footer_order_link"] = "https://t.me/footer_order_account"
         data["footer_order_text"] = "@footer_order_account"
+        data["footer_text"] = "توضیح تازهٔ برند در فوتر"
 
         response = self.client.post(reverse("site_settings"), data)
 
@@ -328,20 +337,72 @@ class AdminAccountTests(TestCase):
         self.assertEqual(site.secondary_cta_link, "https://t.me/cta_order_account")
         self.assertEqual(site.footer_order_link, "https://t.me/footer_order_account")
         self.assertEqual(site.footer_order_text, "@footer_order_account")
+        self.assertEqual(site.footer_text, "توضیح تازهٔ برند در فوتر")
         home = self.client.get(reverse("home"))
         checkout = self.client.get(reverse("checkout"))
         self.assertContains(checkout, 'data-telegram-order-id="new_order_account"')
         self.assertContains(home, 'href="https://t.me/cta_order_account"')
         self.assertContains(home, 'href="https://t.me/footer_order_account"')
         self.assertContains(home, "@footer_order_account")
+        self.assertContains(home, "توضیح تازهٔ برند در فوتر")
+
+    def test_primary_admin_can_add_edit_and_delete_footer_social_links(self):
+        site = SiteSettings.get()
+        data = self.settings_data(site)
+        data.update({
+            "footer_socials-TOTAL_FORMS": "1",
+            "footer_socials-0-label": "اینستاگرام",
+            "footer_socials-0-icon": SocialLink.Icon.INSTAGRAM,
+            "footer_socials-0-url": "https://instagram.com/aseman",
+        })
+
+        response = self.client.post(reverse("site_settings"), data)
+
+        self.assertRedirects(response, reverse("site_settings"))
+        social = site.social_links.get()
+        self.assertEqual((social.label, social.icon, social.url), (
+            "اینستاگرام",
+            SocialLink.Icon.INSTAGRAM,
+            "https://instagram.com/aseman",
+        ))
+        self.assertContains(self.client.get(reverse("home")), 'aria-label="اینستاگرام"')
+
+        data = self.settings_data(site)
+        data.update({
+            "footer_socials-TOTAL_FORMS": "1",
+            "footer_socials-INITIAL_FORMS": "1",
+            "footer_socials-0-id": str(social.pk),
+            "footer_socials-0-label": "اینستاگرام فروشگاه",
+            "footer_socials-0-icon": SocialLink.Icon.INSTAGRAM,
+            "footer_socials-0-url": "https://instagram.com/aseman_shop",
+        })
+        response = self.client.post(reverse("site_settings"), data)
+
+        self.assertRedirects(response, reverse("site_settings"))
+        social.refresh_from_db()
+        self.assertEqual(social.label, "اینستاگرام فروشگاه")
+        self.assertEqual(social.url, "https://instagram.com/aseman_shop")
+        self.assertContains(self.client.get(reverse("home")), 'href="https://instagram.com/aseman_shop"')
+
+        data = self.settings_data(site)
+        data.update({
+            "footer_socials-TOTAL_FORMS": "1",
+            "footer_socials-INITIAL_FORMS": "1",
+            "footer_socials-0-id": str(social.pk),
+            "footer_socials-0-label": social.label,
+            "footer_socials-0-icon": social.icon,
+            "footer_socials-0-url": social.url,
+            "footer_socials-0-DELETE": "on",
+        })
+        response = self.client.post(reverse("site_settings"), data)
+
+        self.assertRedirects(response, reverse("site_settings"))
+        self.assertFalse(site.social_links.exists())
+        self.assertNotContains(self.client.get(reverse("home")), 'href="https://instagram.com/aseman_shop"')
 
     def test_primary_admin_cannot_save_invalid_telegram_order_username(self):
         site = SiteSettings.get()
-        data = {
-            name: getattr(site, name)
-            for name in SiteSettingsForm.Meta.fields
-            if name != "hero_image"
-        }
+        data = self.settings_data(site)
         data["telegram_order_id"] = "not a valid username"
 
         response = self.client.post(reverse("site_settings"), data)
@@ -353,11 +414,7 @@ class AdminAccountTests(TestCase):
 
     def test_inspiration_colors_accept_rgb_values(self):
         site = SiteSettings.get()
-        data = {
-            name: getattr(site, name)
-            for name in SiteSettingsForm.Meta.fields
-            if name != "hero_image"
-        }
+        data = self.settings_data(site)
         data.update({
             "inspiration_card_color": "rgb(53, 19, 33)",
             "inspiration_text_color": "RGB(244, 232, 223)",
@@ -372,11 +429,7 @@ class AdminAccountTests(TestCase):
 
     def test_inspiration_colors_reject_invalid_values(self):
         site = SiteSettings.get()
-        data = {
-            name: getattr(site, name)
-            for name in SiteSettingsForm.Meta.fields
-            if name != "hero_image"
-        }
+        data = self.settings_data(site)
         data["inspiration_card_color"] = "red; background:url(javascript:alert(1))"
 
         response = self.client.post(reverse("site_settings"), data)
@@ -631,6 +684,9 @@ class CustomerAccountTests(TestCase):
         self.assertContains(response, 'value="چراغ-خواب" selected')
         self.assertContains(response, "چراغ خواب")
         self.assertNotContains(response, "محصول غیرفعال")
+        self.assertContains(response, 'aria-label="دسته‌بندی‌های فروشگاه"')
+        self.assertContains(response, "دسترسی سریع")
+        self.assertContains(response, "شبکه‌های اجتماعی")
 
 
 class ManualOrderTests(TestCase):
@@ -715,8 +771,8 @@ class CheckoutPageTests(TestCase):
         home = self.client.get(reverse("home"))
         checkout = self.client.get(reverse("checkout"))
 
-        self.assertContains(home, 'href="/static/store/css/site.css?v=33"')
-        self.assertContains(checkout, 'href="/static/store/css/site.css?v=33"')
+        self.assertContains(home, 'href="/static/store/css/site.css?v=36"')
+        self.assertContains(checkout, 'href="/static/store/css/site.css?v=36"')
 
     def test_checkout_page_has_shipping_details_and_payment_options(self):
         response = self.client.get(reverse("checkout"))

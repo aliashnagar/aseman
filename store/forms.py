@@ -8,7 +8,17 @@ from django.contrib.auth.password_validation import validate_password
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.utils.text import slugify
 
-from .models import Category, CustomerProfile, Order, OrderItem, Product, ProductImage, ProductVariant, SiteSettings
+from .models import (
+    Category,
+    CustomerProfile,
+    Order,
+    OrderItem,
+    Product,
+    ProductImage,
+    ProductVariant,
+    SiteSettings,
+    SocialLink,
+)
 
 
 class MultipleImageInput(forms.ClearableFileInput):
@@ -117,6 +127,8 @@ class SiteSettingsForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["footer_text"].label = "توضیح زیر نام سایت در فوتر"
+        self.fields["footer_text"].help_text = "متن کوتاهی که زیر نام برند در پایین صفحه نمایش داده می‌شود."
         self.fields["telegram_order_id"].help_text = (
             "فقط نام کاربری تلگرام را وارد کنید؛ برای نمونه @my_telegram_username. این شناسه مقصد سفارش سبد خرید است."
         )
@@ -130,6 +142,29 @@ class SiteSettingsForm(forms.ModelForm):
                 "نام کاربری تلگرام باید ۵ تا ۳۲ حرف انگلیسی، عدد یا زیرخط باشد و با حرف شروع شود."
             )
         return telegram_order_id
+
+
+class SocialLinkForm(forms.ModelForm):
+    class Meta:
+        model = SocialLink
+        fields = ("label", "icon", "url")
+        widgets = {
+            "label": forms.TextInput(attrs={"class": "field", "placeholder": "مثلاً اینستاگرام"}),
+            "icon": forms.Select(attrs={"class": "field"}),
+            "url": forms.URLInput(attrs={"class": "field", "dir": "ltr", "placeholder": "https://"}),
+        }
+
+
+SocialLinkFormSetFactory = inlineformset_factory(
+    SiteSettings,
+    SocialLink,
+    form=SocialLinkForm,
+    extra=0,
+    can_delete=True,
+    max_num=20,
+    validate_max=True,
+)
+
 
 class AdminCreationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):

@@ -170,6 +170,32 @@ class SiteSettings(models.Model):
         return site
 
 
+class SocialLink(models.Model):
+    class Icon(models.TextChoices):
+        TELEGRAM = "telegram", "تلگرام"
+        INSTAGRAM = "instagram", "اینستاگرام"
+        WHATSAPP = "whatsapp", "واتساپ"
+        FACEBOOK = "facebook", "فیسبوک"
+        X = "x", "ایکس (X)"
+        YOUTUBE = "youtube", "یوتیوب"
+        TIKTOK = "tiktok", "تیک‌تاک"
+        LINK = "link", "لینک عمومی"
+
+    site = models.ForeignKey(SiteSettings, on_delete=models.CASCADE, related_name="social_links")
+    label = models.CharField("عنوان", max_length=60)
+    icon = models.CharField("آیکون", max_length=16, choices=Icon.choices, default=Icon.LINK)
+    url = models.URLField("لینک", max_length=500)
+    position = models.PositiveSmallIntegerField("ترتیب", default=0)
+
+    class Meta:
+        ordering = ["position", "id"]
+        verbose_name = "شبکه اجتماعی فوتر"
+        verbose_name_plural = "شبکه‌های اجتماعی فوتر"
+
+    def __str__(self):
+        return self.label
+
+
 class PageView(models.Model):
     created_at = models.DateTimeField("زمان بازدید", auto_now_add=True, db_index=True)
 

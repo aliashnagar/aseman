@@ -24,7 +24,7 @@
           {% include 'store/_settings_field.html' with field=form.hero_text %}
         </div>
       </details>
-      <details class="settings-group" {% if form.errors %}open{% endif %}>
+      <details class="settings-group" {% if form.errors or social_formset.errors %}open{% endif %}>
         <summary>دکمه‌های صفحه اصلی</summary>
         <div class="r2">
           {% include 'store/_settings_field.html' with field=form.primary_cta_text %}
@@ -33,7 +33,7 @@
           {% include 'store/_settings_field.html' with field=form.secondary_cta_link %}
         </div>
       </details>
-      <details class="settings-group" {% if form.errors %}open{% endif %}>
+      <details class="settings-group" {% if form.errors or social_formset.errors %}open{% endif %}>
         <summary>بخش‌های صفحه</summary>
         <div class="r2">
           {% include 'store/_settings_field.html' with field=form.shop_title %}
@@ -44,7 +44,7 @@
           {% include 'store/_settings_field.html' with field=form.order_subtitle %}
         </div>
       </details>
-      <details class="settings-group" {% if form.errors %}open{% endif %}>
+      <details class="settings-group" {% if form.errors or social_formset.errors %}open{% endif %}>
         <summary>کارت‌های الهام‌بخش</summary>
         <div class="r2">
           {% include 'store/_settings_field.html' with field=form.inspiration_card_1 %}
@@ -56,7 +56,7 @@
           {% include 'store/_settings_field.html' with field=form.inspiration_hatch %}
         </div>
       </details>
-      <details class="settings-group" {% if form.errors %}open{% endif %}>
+      <details class="settings-group" {% if form.errors or social_formset.errors %}open{% endif %}>
         <summary>فوتر و راه‌های ارتباطی</summary>
         <div class="r2">
           {% include 'store/_settings_field.html' with field=form.footer_brand %}
@@ -69,6 +69,62 @@
           {% include 'store/_settings_field.html' with field=form.footer_channel_text %}
           {% include 'store/_settings_field.html' with field=form.footer_channel_link %}
         </div>
+        <section class="social-links-editor" id="footer-social-links" aria-labelledby="footer-social-title">
+          <div class="social-links-heading">
+            <div>
+              <h2 id="footer-social-title">شبکه‌های اجتماعی فوتر</h2>
+              <p class="note">برای هر شبکه، عنوان، آیکون و لینک را وارد کنید. شبکه‌های اضافه‌شده در فوتر نمایش داده می‌شوند.</p>
+            </div>
+            <button class="btn g s" id="add-footer-social" type="button">افزودن شبکه اجتماعی</button>
+          </div>
+          {{ social_formset.management_form }}
+          {% if social_formset.non_form_errors %}
+            <div class="err">{{ social_formset.non_form_errors }}</div>
+          {% endif %}
+          <div class="social-links-rows" id="footer-social-rows">
+            {% for social_form in social_formset %}
+            <div class="social-link-row">
+              {% for hidden in social_form.hidden_fields %}{{ hidden }}{% endfor %}
+              <label class="field-wrap">
+                <span>{{ social_form.label.label }}</span>
+                {{ social_form.label }}
+                {% for error in social_form.label.errors %}<small class="err">{{ error }}</small>{% endfor %}
+              </label>
+              <label class="field-wrap">
+                <span>{{ social_form.icon.label }}</span>
+                {{ social_form.icon }}
+                {% for error in social_form.icon.errors %}<small class="err">{{ error }}</small>{% endfor %}
+              </label>
+              <label class="field-wrap">
+                <span>{{ social_form.url.label }}</span>
+                {{ social_form.url }}
+                {% for error in social_form.url.errors %}<small class="err">{{ error }}</small>{% endfor %}
+              </label>
+              <label class="inline-check social-link-delete">{{ social_form.DELETE }}<span>حذف این شبکه</span></label>
+              <button class="btn g s" type="button" data-remove-footer-social>حذف</button>
+            </div>
+            {% endfor %}
+          </div>
+          <template id="footer-social-empty-form">
+            <div class="social-link-row">
+              {% for hidden in social_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+              <label class="field-wrap">
+                <span>{{ social_formset.empty_form.label.label }}</span>
+                {{ social_formset.empty_form.label }}
+              </label>
+              <label class="field-wrap">
+                <span>{{ social_formset.empty_form.icon.label }}</span>
+                {{ social_formset.empty_form.icon }}
+              </label>
+              <label class="field-wrap">
+                <span>{{ social_formset.empty_form.url.label }}</span>
+                {{ social_formset.empty_form.url }}
+              </label>
+              <label class="inline-check social-link-delete">{{ social_formset.empty_form.DELETE }}<span>حذف این شبکه</span></label>
+              <button class="btn g s" type="button" data-remove-footer-social>حذف</button>
+            </div>
+          </template>
+        </section>
       </details>
       <div class="actions"><button class="btn" type="submit">ذخیره تغییرات</button></div>
     </form>
@@ -78,4 +134,5 @@
 
 {% block scripts %}
 <script src="{% static 'store/js/color-settings.js' %}" defer></script>
+<script src="{% static 'store/js/social-links.js' %}?v=1" defer></script>
 {% endblock %}
