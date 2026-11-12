@@ -5,13 +5,16 @@
 ## اجرا
 
 ```powershell
+$env:DJANGO_DEBUG = "1"
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py createsuperuser
-python manage.py runserver
+python manage.py runserver --insecure
 ```
+
+`DJANGO_DEBUG=1` فقط برای اجرای محلی است تا فایل‌های media ارائه شوند؛ `--insecure` نیز فایل‌های static مثل CSS را هنگام `DEBUG=False` سرو می‌کند. برای محیط واقعی، `DJANGO_DEBUG` را تنظیم نکنید و فایل‌های static و media را با وب‌سرور یا سرویس میزبانی ارائه کنید.
 
 سایت: `http://127.0.0.1:8000/`  
 داشبورد پنل: `http://127.0.0.1:8000/panel/`  

@@ -1,0 +1,72 @@
+{% extends 'store/base.html' %}
+{% load static %}
+{% block title %}تکمیل سفارش | آسمان شب{% endblock %}
+{% block header %}
+<header class="checkout-header">
+  <div class="wrap bar">
+    <a class="logo" href="{% url 'home' %}#shop">{{ site.brand_name|default:'آسمان شب' }}</a>
+    <a class="text-link" href="{% url 'home' %}#shop">بازگشت به فروشگاه</a>
+  </div>
+</header>
+{% endblock %}
+{% block content %}
+<main class="checkout-page wrap">
+  <h1>تکمیل سفارش</h1>
+  <p class="sub">مشخصات گیرنده و روش پرداخت را وارد کنید.</p>
+  <div class="checkout-layout">
+    <section class="checkout-summary" aria-labelledby="checkout-summary-title">
+      <h2 id="checkout-summary-title">خلاصه سفارش</h2>
+      <div id="checkout-items" aria-live="polite">
+        <p class="note">در حال بارگذاری سبد خرید…</p>
+      </div>
+      <div class="tot"><span>جمع کل</span><b id="checkout-total">—</b></div>
+    </section>
+    <form class="checkout-form" id="checkout-form"
+          data-telegram-order-id="{{ site.telegram_order_id }}"
+          data-products-url="{% url 'products_api' %}">
+      <h2>اطلاعات گیرنده</h2>
+      <label>نام و نام خانوادگی
+        <input class="field" name="name" autocomplete="name" required>
+      </label>
+      <label>شماره تماس
+        <input class="field" name="phone" type="tel" inputmode="tel" autocomplete="tel"
+               pattern="[0-9۰-۹٠-٩+]{10,14}" required>
+      </label>
+      <div class="checkout-fields">
+        <label>استان
+          <input class="field" name="province" autocomplete="address-level1" required>
+        </label>
+        <label>شهر
+          <input class="field" name="city" autocomplete="address-level2" required>
+        </label>
+      </div>
+      <label>آدرس کامل
+        <textarea class="field" name="address" autocomplete="street-address" rows="3" minlength="8" required></textarea>
+      </label>
+      <label>کد پستی
+        <input class="field" name="postal_code" inputmode="numeric" autocomplete="postal-code"
+               pattern="[0-9۰-۹٠-٩]{10}" maxlength="10" required>
+      </label>
+      <label>توضیحات سفارش <span class="note">(اختیاری)</span>
+        <textarea class="field" name="notes" rows="2"></textarea>
+      </label>
+      <fieldset class="payment-options">
+        <legend>روش پرداخت</legend>
+        <label class="payment-option">
+          <input type="radio" name="payment" value="gateway" required>
+          <span><b>از طریق درگاه پرداخت</b><small>درگاه پرداخت به‌زودی فعال می‌شود.</small></span>
+        </label>
+        <label class="payment-option">
+          <input type="radio" name="payment" value="card_transfer" required>
+          <span><b>از طریق کارت‌به‌کارت</b><small>ثبت سفارش از طریق تلگرام انجام می‌شود.</small></span>
+        </label>
+      </fieldset>
+      <p class="checkout-message" id="checkout-message" role="status" aria-live="polite"></p>
+      <button class="btn" id="checkout-submit" type="submit" disabled>ثبت سفارش</button>
+    </form>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'store/js/checkout.js' %}?v=1" defer></script>
+{% endblock %}

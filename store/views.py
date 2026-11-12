@@ -41,8 +41,19 @@ def panel_login_required(view):
 def home(request):
     PageView.objects.create()
     query = request.GET.get("q", "").strip()
+    selected_category = request.GET.get("category", "")
     site = SiteSettings.get()
-    return render(request, "store/home.html", {"query": query, "site": site})
+    categories = Category.objects.filter(products__is_active=True).distinct().order_by("name")
+    return render(request, "store/home.html", {
+        "query": query,
+        "site": site,
+        "categories": categories,
+        "selected_category": selected_category,
+    })
+
+
+def checkout(request):
+    return render(request, "store/checkout.html", {"site": SiteSettings.get()})
 
 
 @panel_login_required

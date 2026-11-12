@@ -308,7 +308,7 @@ class AdminAccountTests(TestCase):
         self.assertContains(home, "--inspiration-text-color: #abcdef")
         self.assertNotContains(home, "inspiration-card--hatched")
 
-    def test_primary_admin_can_change_telegram_order_username(self):
+    def test_primary_admin_can_save_order_username_and_links_independently(self):
         site = SiteSettings.get()
         data = {
             name: getattr(site, name)
@@ -316,22 +316,24 @@ class AdminAccountTests(TestCase):
             if name != "hero_image"
         }
         data["telegram_order_id"] = "@new_order_account"
-        data["secondary_cta_link"] = "https://t.me/old_order_account"
-        data["footer_order_link"] = "https://t.me/old_order_account"
-        data["footer_order_text"] = "@old_order_account"
+        data["secondary_cta_link"] = "https://t.me/cta_order_account"
+        data["footer_order_link"] = "https://t.me/footer_order_account"
+        data["footer_order_text"] = "@footer_order_account"
 
         response = self.client.post(reverse("site_settings"), data)
 
         self.assertRedirects(response, reverse("site_settings"))
         site.refresh_from_db()
         self.assertEqual(site.telegram_order_id, "new_order_account")
-        self.assertEqual(site.secondary_cta_link, "https://t.me/new_order_account")
-        self.assertEqual(site.footer_order_link, "https://t.me/new_order_account")
-        self.assertEqual(site.footer_order_text, "@new_order_account")
+        self.assertEqual(site.secondary_cta_link, "https://t.me/cta_order_account")
+        self.assertEqual(site.footer_order_link, "https://t.me/footer_order_account")
+        self.assertEqual(site.footer_order_text, "@footer_order_account")
         home = self.client.get(reverse("home"))
-        self.assertContains(home, 'data-telegram-order-id="new_order_account"')
-        self.assertContains(home, 'href="https://t.me/new_order_account"')
-        self.assertEqual(home.content.count(b'href="https://t.me/new_order_account"'), 2)
+        checkout = self.client.get(reverse("checkout"))
+        self.assertContains(checkout, 'data-telegram-order-id="new_order_account"')
+        self.assertContains(home, 'href="https://t.me/cta_order_account"')
+        self.assertContains(home, 'href="https://t.me/footer_order_account"')
+        self.assertContains(home, "@footer_order_account")
 
     def test_primary_admin_cannot_save_invalid_telegram_order_username(self):
         site = SiteSettings.get()
@@ -608,7 +610,27 @@ class CustomerAccountTests(TestCase):
 
         self.assertContains(response, reverse("customer_login"))
         self.assertNotContains(response, 'id="wl"')
-        self.assertContains(response, 'id="favorites-toggle"')
+        self.assertContains(response, 'id="category-filter"')
+        self.assertContains(response, 'id="so"')
+        self.assertNotContains(response, 'id="favorites-toggle"')
+        self.assertContains(response, "تکمیل سفارش")
+
+    def test_homepage_categories_are_available_as_shop_filters(self):
+        category = Category.objects.create(name="چراغ خواب", slug="چراغ-خواب")
+        Product.objects.create(name="چراغ ماه", category=category, price=80000)
+        inactive_category = Category.objects.create(name="قدیمی", slug="قدیمی")
+        Product.objects.create(
+            name="محصول غیرفعال",
+            category=inactive_category,
+            price=50000,
+            is_active=False,
+        )
+
+        response = self.client.get(reverse("home"), {"category": category.slug})
+
+        self.assertContains(response, 'value="چراغ-خواب" selected')
+        self.assertContains(response, "چراغ خواب")
+        self.assertNotContains(response, "محصول غیرفعال")
 
 
 class ManualOrderTests(TestCase):
@@ -686,3 +708,27 @@ class ManualOrderTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Order.objects.exists())
+
+
+class CheckoutPageTests(TestCase):
+    def test_static_css_uses_absolute_url_on_home_and_checkout(self):
+        home = self.client.get(reverse("home"))
+        checkout = self.client.get(reverse("checkout"))
+
+        self.assertContains(home, 'href="/static/store/css/site.css?v=33"')
+        self.assertContains(checkout, 'href="/static/store/css/site.css?v=33"')
+
+    def test_checkout_page_has_shipping_details_and_payment_options(self):
+        response = self.client.get(reverse("checkout"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "نام و نام خانوادگی")
+        self.assertContains(response, "استان")
+        self.assertContains(response, "شهر")
+        self.assertContains(response, "آدرس کامل")
+        self.assertContains(response, "کد پستی")
+        self.assertContains(response, "از طریق درگاه پرداخت")
+        self.assertContains(response, "از طریق کارت‌به‌کارت")
+        self.assertContains(response, "ثبت سفارش از طریق تلگرام")
+        self.assertContains(response, 'value="gateway"')
+        self.assertContains(response, 'value="card_transfer"')

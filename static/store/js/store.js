@@ -19,9 +19,8 @@ const readStorage = (key, fallback) => {
 const grid = $('#grid');
 const search = $('#q');
 const sort = $('#so');
-const favoritesToggle = $('#favorites-toggle');
+const categoryFilter = $('#category-filter');
 let products = [];
-let onlyWish = new URLSearchParams(location.search).get('favorites') === '1';
 let cart = readStorage('as_cart', {});
 let wish = readStorage('as_wish', []);
 
@@ -100,9 +99,9 @@ function render() {
   if (!grid) return;
   const query = search.value.trim().toLocaleLowerCase('fa');
   const shown = products.filter(product => {
-    const matchesWish = !onlyWish || wish.includes(Number(product.id));
+    const matchesCategory = !categoryFilter.value || product.category === categoryFilter.value;
     const text = `${product.name} ${product.description}`.toLocaleLowerCase('fa');
-    return matchesWish && (!query || text.includes(query));
+    return matchesCategory && (!query || text.includes(query));
   });
   const lowestPrice = product => product.variants?.length
     ? Math.min(...product.variants.map(variant => Number(variant.price)))
@@ -127,16 +126,9 @@ function render() {
           : `data-add="${id}">افزودن به سبد`}</button>
       </div>
     </article>`;
-  }).join('') : `<p class="empty">${onlyWish
-    ? 'هنوز محصولی را به علاقه‌مندی‌ها اضافه نکرده‌اید.'
-    : 'محصولی با این مشخصات پیدا نشد. عبارت جستجو را تغییر دهید.'}</p>`;
+  }).join('') : '<p class="empty">محصولی با این مشخصات پیدا نشد. عبارت جستجو یا دسته‌بندی را تغییر دهید.</p>';
 
   $('#cn').textContent = Object.values(cart).reduce((total, quantity) => total + quantity, 0) || '';
-  if (favoritesToggle) {
-    favoritesToggle.hidden = false;
-    favoritesToggle.textContent = onlyWish ? 'نمایش همه محصولات' : 'فقط علاقه‌مندی‌ها';
-    favoritesToggle.setAttribute('aria-pressed', String(onlyWish));
-  }
 }
 
 function drawCart() {
@@ -261,6 +253,7 @@ function updateUrl() {
   const params = new URLSearchParams();
   if (search.value.trim()) params.set('q', search.value.trim());
   if (sort.value !== '0') params.set('sort', sort.value);
+  if (categoryFilter.value) params.set('category', categoryFilter.value);
   history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`);
 }
 
@@ -294,9 +287,12 @@ async function loadProducts() {
 
 if (grid) {
   if (search) search.value = new URLSearchParams(location.search).get('q') || search.value;
-  if (new URLSearchParams(location.search).has('sort')) sort.value = new URLSearchParams(location.search).get('sort');
+  const params = new URLSearchParams(location.search);
+  if (params.has('sort')) sort.value = params.get('sort');
+  if (params.has('category')) categoryFilter.value = params.get('category');
   search.addEventListener('input', () => { render(); updateUrl(); });
   sort.addEventListener('change', () => { render(); updateUrl(); });
+  categoryFilter.addEventListener('change', () => { render(); updateUrl(); });
   loadProducts();
 }
 
@@ -335,14 +331,6 @@ document.addEventListener('click', event => {
   }
   if (button.id === 'cb') setDrawer(true);
   if (button.id === 'dc') setDrawer(false);
-  if (button.id === 'favorites-toggle') {
-    onlyWish = !onlyWish;
-    const url = new URL(location.href);
-    if (onlyWish) url.searchParams.set('favorites', '1');
-    else url.searchParams.delete('favorites');
-    history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
-    render();
-  }
 });
 
 $('#ov')?.addEventListener('click', () => setDrawer(false));
@@ -354,40 +342,6 @@ document.addEventListener('keydown', event => {
     setDrawer(false);
     if ($('#dg')?.open) $('#dg').close();
   }
-});
-
-$('#go')?.addEventListener('click', () => {
-  const name = $('#fn').value.trim();
-  const phone = normalizeDigits($('#fp').value.trim()).replace(/\s/g, '');
-  const address = $('#fa').value.trim();
-  const error = $('#er');
-  if (!name || !/^[0-9+]{10,14}$/.test(phone) || address.length < 8) {
-    error.textContent = 'نام، شماره تماس معتبر و آدرس کامل را وارد کنید.';
-    return;
-  }
-  const items = Object.entries(cart).filter(([key]) => {
-    const {productId, variantId} = cartEntry(key);
-    const product = productById(productId);
-    return product && (!variantId || variantById(product, variantId));
-  });
-  if (!items.length) {
-    error.textContent = 'سبد خرید شما خالی است.';
-    return;
-  }
-  error.textContent = '';
-  let total = 0;
-  const lines = items.map(([key, quantity]) => {
-    const {productId, variantId} = cartEntry(key);
-    const product = productById(productId);
-    const variant = variantId ? variantById(product, variantId) : null;
-    const unitPrice = Number(itemPrice(product, variantId));
-    const subtotal = unitPrice * quantity;
-    total += subtotal;
-    return `• ${product.name}${variant ? ` (${variant.size})` : ''} × ${fa(quantity)} = ${money(subtotal)}`;
-  });
-  const message = `سلام، سفارش جدید از سایت آسمان شب:\n${lines.join('\n')}\nجمع کل: ${money(total)}\n\nنام: ${name}\nتلفن: ${phone}\nآدرس: ${address}`;
-  const telegramOrderId = $('#go').dataset.telegramOrderId;
-  window.open(`https://t.me/${encodeURIComponent(telegramOrderId)}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
 });
 
 const canvas = $('#sky');

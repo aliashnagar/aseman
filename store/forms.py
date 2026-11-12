@@ -118,7 +118,7 @@ class SiteSettingsForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["telegram_order_id"].help_text = (
-            "با تغییر این شناسه، مقصد سبد خرید، دکمه سفارش صفحه اصلی و لینک سفارش فوتر باهم به‌روز می‌شوند."
+            "فقط نام کاربری تلگرام را وارد کنید؛ برای نمونه @my_telegram_username. این شناسه مقصد سفارش سبد خرید است."
         )
 
     def clean_telegram_order_id(self):
@@ -130,17 +130,6 @@ class SiteSettingsForm(forms.ModelForm):
                 "نام کاربری تلگرام باید ۵ تا ۳۲ حرف انگلیسی، عدد یا زیرخط باشد و با حرف شروع شود."
             )
         return telegram_order_id
-
-    def save(self, commit=True):
-        site = super().save(commit=False)
-        site.secondary_cta_link = site.telegram_order_link
-        site.footer_order_link = site.telegram_order_link
-        site.footer_order_text = site.telegram_order_username
-        if commit:
-            site.save()
-            self.save_m2m()
-        return site
-
 
 class AdminCreationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
