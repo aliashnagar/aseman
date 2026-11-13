@@ -12,6 +12,7 @@
     <a class="nv {% if active_page == 'dashboard' %}current{% endif %}" href="{% url 'dashboard' %}">داشبورد</a>
     <a class="nv {% if active_page == 'products' %}current{% endif %}" href="{% url 'product_list' %}">محصولات</a>
     <a class="nv {% if active_page == 'categories' %}current{% endif %}" href="{% url 'category_list' %}">دسته‌بندی‌ها</a>
+    <a class="nv {% if active_page == 'faq' %}current{% endif %}" href="{% url 'faq_manage' %}">سوالات پرتکرار</a>
     <a class="nv {% if active_page == 'orders' %}current{% endif %}" href="{% url 'order_list' %}">سفارش‌ها</a>
     {% if request.user.is_superuser %}<a class="nv {% if active_page == 'admins' %}current{% endif %}" href="{% url 'admin_manage' %}">مدیریت ادمین‌ها</a>{% endif %}
     {% if request.user.is_superuser %}<a class="nv {% if active_page == 'site' %}current{% endif %}" href="{% url 'site_settings' %}">تنظیمات سایت</a>{% endif %}

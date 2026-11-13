@@ -54,6 +54,10 @@ h2::after{content:"";display:block;width:120px;height:5px;margin:12px auto 0;bor
 select.field{min-width:150px}
 select.field option{background:var(--night)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:56px 38px}
+.catalog-pagination{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:42px}
+.catalog-pagination[hidden]{display:none}
+.catalog-pagination button:disabled{opacity:.45;cursor:not-allowed}
+.catalog-pagination span{min-width:72px;color:var(--mist);text-align:center}
 .card{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0}
 .card-media{position:relative;width:100%}
 .art{position:relative;display:grid;place-items:center;width:100%;aspect-ratio:4/5;min-height:0;padding:0;overflow:hidden;border:11px solid #040508;border-radius:0;background:#000;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 22px 36px rgba(0,0,0,.6);cursor:pointer}
@@ -69,6 +73,7 @@ select.field option{background:var(--night)}
 .price s{opacity:.55;margin-inline-end:8px}
 .add{background:none;border:1px solid var(--line);border-radius:2px;padding:3px 16px;font-size:13px}
 .add:hover{background:var(--moon);color:var(--ink)}
+.add:disabled{border-color:var(--line);color:var(--mist);cursor:not-allowed;opacity:.65}
 .empty{grid-column:1/-1;color:var(--mist);padding:40px 0;text-align:center}
 #inspiration{padding-top:48px}
 .inspiration-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;max-width:960px}
@@ -78,6 +83,22 @@ select.field option{background:var(--night)}
 .inspiration-card::after{position:absolute;top:0;left:50%;width:48px;height:1px;transform:translateX(-50%);background:rgba(235,172,190,.65);box-shadow:0 0 14px rgba(235,172,190,.3);content:""}
 .inspiration-card p{max-width:100%;margin:0;font-family:"Blacksword","Brush Script MT",cursive;font-size:clamp(12px,1.5vw,18px);font-weight:400;line-height:1.55;white-space:nowrap;direction:ltr}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--line);border-radius:2px;counter-reset:s}
+.faq-section{padding-bottom:8px}
+.faq-list{max-width:860px;margin:0 auto;border-top:1px solid var(--line)}
+.faq-item{border-bottom:1px solid var(--line)}
+.faq-item summary{position:relative;padding:18px 48px 18px 12px;cursor:pointer;list-style:none;font-size:17px}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::before{content:"+";position:absolute;inset-inline-end:10px;top:50%;display:grid;width:28px;height:28px;place-items:center;transform:translateY(-50%);border:1px solid var(--line);color:var(--moon);font-size:20px;line-height:1}
+.faq-item[open] summary::before{content:"−"}
+.faq-item[open] summary{color:var(--moon)}
+.faq-answer{padding:0 48px 20px 12px;color:var(--mist);line-height:2}
+.faq-manage-form{display:grid;width:min(680px,100%);gap:12px;margin:0 auto 28px}
+.faq-manage-form label{display:grid;gap:6px}
+.faq-manage-form .field{box-sizing:border-box;width:100%;min-width:0;color:var(--moon)}
+.faq-manage-list{display:grid;gap:10px}
+.faq-manage-item{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:14px;border:1px solid var(--line);background:rgba(14,16,24,.78)}
+.faq-manage-item p{margin:5px 0 0;color:var(--mist);white-space:pre-line}
+.faq-manage-item form{flex:0 0 auto}
 .steps div{padding:28px 26px;border-inline-start:1px solid var(--line)}
 .steps div:first-child{border-inline-start:0}
 .steps b{display:block;font-size:26px;font-weight:600;margin-bottom:4px}

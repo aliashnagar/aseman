@@ -1,0 +1,32 @@
+{% extends 'store/base.html' %}
+{% block title %}سوالات پرتکرار | آسمان شب{% endblock %}
+{% block header %}{% endblock %}
+{% block content %}
+<div id="admin-app">
+  {% include 'store/panel_nav.html' with active_page='faq' %}
+  <main class="admin-main">
+    {% if messages %}<div class="messages">{% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+    <div class="top"><h1>سوالات پرتکرار</h1></div>
+    <form class="box faq-manage-form" method="post">
+      {% csrf_token %}
+      <h2>افزودن سوال</h2>
+      <label for="{{ form.question.id_for_label }}">{{ form.question.label }}{{ form.question }}{% for error in form.question.errors %}<span class="err">{{ error }}</span>{% endfor %}</label>
+      <label for="{{ form.answer.id_for_label }}">{{ form.answer.label }}{{ form.answer }}{% for error in form.answer.errors %}<span class="err">{{ error }}</span>{% endfor %}</label>
+      <button class="btn" type="submit">ثبت سوال</button>
+    </form>
+    <section class="faq-manage-list" aria-label="سوالات ثبت‌شده">
+      {% for faq in faq_items %}
+      <article class="faq-manage-item">
+        <div><b>{{ faq.question }}</b><p>{{ faq.answer }}</p></div>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" name="faq_id" value="{{ faq.pk }}">
+          <button class="btn g delete s" type="submit" aria-label="حذف سوال {{ faq.question }}">حذف</button>
+        </form>
+      </article>
+      {% empty %}<p class="empty">هنوز سوالی ثبت نشده است.</p>{% endfor %}
+    </section>
+  </main>
+</div>
+{% endblock %}

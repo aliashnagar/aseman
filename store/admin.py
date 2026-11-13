@@ -1,6 +1,12 @@
 from django.contrib import admin
 from .forms import ProductVariantFormSet
-from .models import Category, CustomerProfile, Order, OrderItem, Product, ProductVariant
+from .models import Category, CustomerProfile, FAQ, Order, OrderItem, Product, ProductVariant
+
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    list_display = ("question", "position")
+    ordering = ("position", "id")
 
 
 @admin.register(CustomerProfile)

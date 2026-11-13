@@ -37,6 +37,11 @@
         </select>
       </div>
       <div class="grid" id="grid" aria-live="polite"></div>
+      <nav class="catalog-pagination" id="catalog-pagination" aria-label="صفحه‌بندی محصولات" hidden>
+        <button class="btn ghost" type="button" data-page-step="-1">قبلی</button>
+        <span id="catalog-page-status" aria-live="polite"></span>
+        <button class="btn ghost" type="button" data-page-step="1">بعدی</button>
+      </nav>
     </div>
   </section>
 
@@ -82,6 +87,21 @@
       </div>
     </div>
   </section>
+  {% if faq_items %}
+  <section id="faq" class="faq-section">
+    <div class="wrap">
+      <h2>سوالات پرتکرار</h2>
+      <div class="faq-list">
+        {% for faq in faq_items %}
+        <details class="faq-item">
+          <summary>{{ faq.question }}</summary>
+          <div class="faq-answer">{{ faq.answer|linebreaksbr }}</div>
+        </details>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
 </main>
 
 <footer id="contact">
@@ -119,6 +139,7 @@
       <a href="{% url 'home' %}#shop">فروشگاه</a>
       <a href="{% url 'home' %}#track">پیگیری سفارش</a>
       <a href="{% url 'home' %}#order">راهنمای سفارش</a>
+      {% if faq_items %}<a href="{% url 'home' %}#faq">سوالات پرتکرار</a>{% endif %}
       <a href="{% url 'home' %}#contact">ارتباط با ما</a>
     </nav>
 
@@ -168,5 +189,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'store/js/store.js' %}?v=5" defer></script>
+<script src="{% static 'store/js/store.js' %}?v=6" defer></script>
 {% endblock %}

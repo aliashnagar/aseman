@@ -30,6 +30,19 @@ class Category(models.Model):
     def __str__(self): return self.name
 
 
+class FAQ(models.Model):
+    question = models.CharField("سوال", max_length=240)
+    answer = models.TextField("پاسخ")
+    position = models.PositiveSmallIntegerField("ترتیب", default=0)
+
+    class Meta:
+        verbose_name = "سوال پرتکرار"
+        verbose_name_plural = "سوالات پرتکرار"
+        ordering = ["position", "id"]
+
+    def __str__(self): return self.question
+
+
 class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products", verbose_name="دسته‌بندی")
     name = models.CharField("نام محصول", max_length=160)
@@ -134,6 +147,7 @@ class SiteSettings(models.Model):
     track_subtitle = models.CharField("زیرعنوان بخش پیگیری", max_length=200, default="شماره سفارش و چهار رقم آخر شماره تلفن را وارد کنید.")
     order_title = models.CharField("عنوان بخش نحوه سفارش", max_length=80, default="نحوه سفارش")
     order_subtitle = models.CharField("زیرعنوان بخش نحوه سفارش", max_length=200, default="بدون ثبت‌نام؛ سبد را پر کنید و سفارش را در تلگرام نهایی کنید.")
+    shipping_cost = models.PositiveIntegerField("هزینه ارسال (تومان)", default=0)
     footer_brand = models.CharField("نام برند فوتر", max_length=80, default="آسمان شب")
     footer_text = models.TextField("متن فوتر", default="تابلو، گل و هدیه. ارسال به سراسر کشور.")
     footer_order_label = models.CharField("برچسب ثبت سفارش", max_length=40, default="ثبت سفارش:")
@@ -231,6 +245,8 @@ class Order(models.Model):
     phone = models.CharField("تلفن", max_length=20)
     address = models.TextField("نشانی")
     status = models.CharField("وضعیت", max_length=12, choices=Status.choices, default=Status.NEW)
+    inventory_deducted = models.BooleanField("کسر موجودی انجام شده", default=False)
+    shipping_cost = models.PositiveIntegerField("هزینه ارسال (تومان)", default=0)
     created_at = models.DateTimeField("زمان ثبت", auto_now_add=True)
 
     class Meta:
@@ -242,7 +258,7 @@ class Order(models.Model):
 
     @property
     def total_amount(self):
-        return sum(item.total for item in self.items.all())
+        return sum(item.total for item in self.items.all()) + self.shipping_cost
 
 
 class OrderItem(models.Model):

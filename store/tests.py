@@ -1,4 +1,5 @@
 from io import BytesIO
+import json
 from pathlib import Path
 import tempfile
 
@@ -8,7 +9,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
-from .models import Category, CustomerProfile, Order, OrderItem, Product, ProductVariant, SiteSettings, SocialLink
+from .models import Category, CustomerProfile, FAQ, Order, OrderItem, Product, ProductVariant, SiteSettings, SocialLink
 from .forms import CustomerRegistrationForm, SiteSettingsForm
 
 
@@ -213,6 +214,7 @@ class ProductVariantTests(TestCase):
             for product in response.json()["products"]
         }
         self.assertEqual(sold_quantities, {"پرفروش": 4, "کم‌فروش": 2})
+        self.assertTrue(all(product["stock"] == 5 for product in response.json()["products"]))
 
     def test_header_contains_search_without_category_chips(self):
         response = self.client.get(reverse("home"), {"q": "ماه"})
@@ -733,12 +735,55 @@ class ManualOrderTests(TestCase):
         order = Order.objects.get(phone="09123456789")
         item = OrderItem.objects.get(order=order)
         self.assertEqual((item.variant_name, item.quantity, item.unit_price), ("بزرگ", 2, 150000))
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
+        self.assertTrue(order.inventory_deducted)
 
         tracking = self.client.post(reverse("track_order"), {
             "number": str(order.pk),
             "phone": "6789",
         })
         self.assertContains(tracking, "تابلو ماه (بزرگ) × 2")
+
+        self.client.post(reverse("order_list"), {
+            "order_id": str(order.pk),
+            "status": Order.Status.CANCELLED,
+        })
+        self.product.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(self.product.stock, 5)
+        self.assertFalse(order.inventory_deducted)
+
+        self.client.post(reverse("order_list"), {
+            "order_id": str(order.pk),
+            "status": Order.Status.PREPARING,
+        })
+        self.product.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(self.product.stock, 3)
+        self.assertTrue(order.inventory_deducted)
+
+    def test_manual_order_rejects_quantity_above_stock(self):
+        response = self.client.post(reverse("order_add"), {
+            "customer_name": "مشتری",
+            "phone": "09123456789",
+            "address": "تهران، خیابان نمونه",
+            "status": Order.Status.NEW,
+            "items-TOTAL_FORMS": "1",
+            "items-INITIAL_FORMS": "0",
+            "items-MIN_NUM_FORMS": "1",
+            "items-MAX_NUM_FORMS": "50",
+            "items-0-product": str(self.product.pk),
+            "items-0-variant": str(self.variant.pk),
+            "items-0-quantity": "6",
+            "items-0-unit_price": "150000",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Order.objects.exists())
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 5)
+        self.assertContains(response, "موجودی کافی نیست")
 
     def test_manual_order_rejects_variant_belonging_to_another_product(self):
         another_product = Product.objects.create(
@@ -766,13 +811,100 @@ class ManualOrderTests(TestCase):
         self.assertFalse(Order.objects.exists())
 
 
+class FAQTests(TestCase):
+    def setUp(self):
+        user = get_user_model().objects.create_user(username="manager", password="test-password")
+        self.client.force_login(user)
+
+    def test_admin_can_add_and_delete_faq(self):
+        response = self.client.post(reverse("faq_manage"), {
+            "question": "چطور سفارش را پیگیری کنم؟",
+            "answer": "شماره سفارش را در بخش پیگیری وارد کنید.",
+        })
+
+        self.assertRedirects(response, reverse("faq_manage"))
+        faq = FAQ.objects.get()
+        self.assertEqual(faq.question, "چطور سفارش را پیگیری کنم؟")
+        self.assertContains(self.client.get(reverse("faq_manage")), faq.question)
+
+        response = self.client.post(reverse("faq_manage"), {
+            "action": "delete",
+            "faq_id": str(faq.pk),
+        })
+
+        self.assertRedirects(response, reverse("faq_manage"))
+        self.assertFalse(FAQ.objects.exists())
+
+    def test_homepage_renders_faq_as_native_accordion(self):
+        FAQ.objects.create(question="هزینه ارسال چقدر است؟", answer="بسته به شهر متفاوت است.")
+
+        response = self.client.get(reverse("home"))
+
+        self.assertContains(response, 'id="faq"')
+        self.assertContains(response, "<details class=\"faq-item\">")
+        self.assertContains(response, "هزینه ارسال چقدر است؟")
+        self.assertContains(response, "بسته به شهر متفاوت است.")
+
+
+class CheckoutSubmitTests(TestCase):
+    def setUp(self):
+        category = Category.objects.create(name="تابلو", slug="تابلو")
+        self.product = Product.objects.create(
+            name="تابلو ماه",
+            category=category,
+            price=100000,
+            stock=5,
+        )
+
+    def checkout_data(self, cart):
+        return {
+            "name": "مشتری",
+            "phone": "۰۹۱۲۳۴۵۶۷۸۹",
+            "province": "تهران",
+            "city": "تهران",
+            "address": "خیابان نمونه، پلاک ۱",
+            "postal_code": "۱۲۳۴۵۶۷۸۹۰",
+            "payment": "card_transfer",
+            "cart": cart,
+        }
+
+    def test_checkout_creates_order_and_deducts_stock(self):
+        SiteSettings.objects.create(shipping_cost=25000)
+        response = self.client.post(
+            reverse("checkout_submit"),
+            data=json.dumps(self.checkout_data({str(self.product.pk): 2})),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        order = Order.objects.get(pk=result["order_id"])
+        self.product.refresh_from_db()
+        self.assertEqual((self.product.stock, order.inventory_deducted), (3, True))
+        self.assertEqual(result["subtotal"], 200000)
+        self.assertEqual((result["shipping_cost"], result["total"]), (25000, 225000))
+        self.assertEqual(order.items.get().quantity, 2)
+
+    def test_checkout_rejects_insufficient_stock_without_creating_order(self):
+        response = self.client.post(
+            reverse("checkout_submit"),
+            data=json.dumps(self.checkout_data({str(self.product.pk): 6})),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertFalse(Order.objects.exists())
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 5)
+
+
 class CheckoutPageTests(TestCase):
     def test_static_css_uses_absolute_url_on_home_and_checkout(self):
         home = self.client.get(reverse("home"))
         checkout = self.client.get(reverse("checkout"))
 
-        self.assertContains(home, 'href="/static/store/css/site.css?v=36"')
-        self.assertContains(checkout, 'href="/static/store/css/site.css?v=36"')
+        self.assertContains(home, 'href="/static/store/css/site.css?v=37"')
+        self.assertContains(checkout, 'href="/static/store/css/site.css?v=37"')
 
     def test_checkout_page_has_shipping_details_and_payment_options(self):
         response = self.client.get(reverse("checkout"))

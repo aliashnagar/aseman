@@ -19,11 +19,14 @@
       <div id="checkout-items" aria-live="polite">
         <p class="note">در حال بارگذاری سبد خرید…</p>
       </div>
+      <div class="checkout-item"><span>هزینه ارسال</span><b id="checkout-shipping">—</b></div>
       <div class="tot"><span>جمع کل</span><b id="checkout-total">—</b></div>
     </section>
     <form class="checkout-form" id="checkout-form"
           data-telegram-order-id="{{ site.telegram_order_id }}"
+          data-submit-url="{% url 'checkout_submit' %}"
           data-products-url="{% url 'products_api' %}">
+      {% csrf_token %}
       <h2>اطلاعات گیرنده</h2>
       <label>نام و نام خانوادگی
         <input class="field" name="name" autocomplete="name" required>
@@ -68,5 +71,5 @@
 </main>
 {% endblock %}
 {% block scripts %}
-<script src="{% static 'store/js/checkout.js' %}?v=1" defer></script>
+<script src="{% static 'store/js/checkout.js' %}?v=3" defer></script>
 {% endblock %}

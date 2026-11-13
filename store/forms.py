@@ -11,6 +11,7 @@ from django.utils.text import slugify
 from .models import (
     Category,
     CustomerProfile,
+    FAQ,
     Order,
     OrderItem,
     Product,
@@ -69,6 +70,7 @@ class SiteSettingsForm(forms.ModelForm):
             "track_subtitle",
             "order_title",
             "order_subtitle",
+            "shipping_cost",
             "footer_brand",
             "footer_text",
             "footer_order_label",
@@ -109,6 +111,7 @@ class SiteSettingsForm(forms.ModelForm):
             "track_subtitle": forms.TextInput(attrs={"class": "field"}),
             "order_title": forms.TextInput(attrs={"class": "field"}),
             "order_subtitle": forms.TextInput(attrs={"class": "field"}),
+            "shipping_cost": forms.NumberInput(attrs={"class": "field", "min": 0}),
             "footer_brand": forms.TextInput(attrs={"class": "field"}),
             "footer_text": forms.Textarea(attrs={"rows": 3, "class": "field"}),
             "footer_order_label": forms.TextInput(attrs={"class": "field"}),
@@ -142,6 +145,16 @@ class SiteSettingsForm(forms.ModelForm):
                 "نام کاربری تلگرام باید ۵ تا ۳۲ حرف انگلیسی، عدد یا زیرخط باشد و با حرف شروع شود."
             )
         return telegram_order_id
+
+
+class FAQForm(forms.ModelForm):
+    class Meta:
+        model = FAQ
+        fields = ("question", "answer")
+        widgets = {
+            "question": forms.TextInput(attrs={"class": "field", "maxlength": 240}),
+            "answer": forms.Textarea(attrs={"class": "field", "rows": 4}),
+        }
 
 
 class SocialLinkForm(forms.ModelForm):

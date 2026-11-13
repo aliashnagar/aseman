@@ -17,10 +17,13 @@ const readStorage = (key, fallback) => {
 };
 
 const grid = $('#grid');
+const pagination = $('#catalog-pagination');
 const search = $('#q');
 const sort = $('#so');
 const categoryFilter = $('#category-filter');
+const productsPerPage = 9;
 let products = [];
+let currentPage = 1;
 let cart = readStorage('as_cart', {});
 let wish = readStorage('as_wish', []);
 
@@ -90,6 +93,7 @@ function variantPrice(variant) {
 }
 
 function catalogPrice(product) {
+  if (Number(product.stock) <= 0) return 'ناموجود';
   if (!product.variants?.length) return price(product);
   const lowest = Math.min(...product.variants.map(variant => Number(variant.price)));
   return `از ${money(lowest)}`;
@@ -110,7 +114,10 @@ function render() {
   if (sort.value === '1') shown.sort((a, b) => lowestPrice(a) - lowestPrice(b));
   if (sort.value === '2') shown.sort((a, b) => lowestPrice(b) - lowestPrice(a));
 
-  grid.innerHTML = shown.length ? shown.map(product => {
+  const pageCount = Math.ceil(shown.length / productsPerPage);
+  currentPage = Math.min(currentPage, Math.max(pageCount, 1));
+  const pageProducts = shown.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
+  grid.innerHTML = pageProducts.length ? pageProducts.map(product => {
     const id = Number(product.id);
     return `<article class="card">
       <div class="card-media">
@@ -121,13 +128,21 @@ function render() {
       </div>
       <h3>${escapeHtml(product.name)}</h3>
       <div class="meta"><span class="price">${catalogPrice(product)}</span>
-        <button class="add" type="button" ${product.variants?.length
+        <button class="add" type="button" ${Number(product.stock) <= 0
+          ? 'disabled>ناموجود'
+          : product.variants?.length
           ? `data-product-detail="${id}">انتخاب سایز`
           : `data-add="${id}">افزودن به سبد`}</button>
       </div>
     </article>`;
   }).join('') : '<p class="empty">محصولی با این مشخصات پیدا نشد. عبارت جستجو یا دسته‌بندی را تغییر دهید.</p>';
 
+  if (pagination) {
+    pagination.hidden = pageCount <= 1;
+    $('#catalog-page-status').textContent = `${fa(currentPage)} از ${fa(pageCount)}`;
+    pagination.querySelector('[data-page-step="-1"]').disabled = currentPage <= 1;
+    pagination.querySelector('[data-page-step="1"]').disabled = currentPage >= pageCount;
+  }
   $('#cn').textContent = Object.values(cart).reduce((total, quantity) => total + quantity, 0) || '';
 }
 
@@ -170,6 +185,10 @@ function drawCart() {
 function addToCart(id, amount = 1) {
   const product = productById(id);
   if (!product || product.variants?.length) return false;
+  if ((cart[id] || 0) + amount > Number(product.stock)) {
+    toast('تعداد انتخاب‌شده بیشتر از موجودی محصول است.');
+    return false;
+  }
   cart[id] = (cart[id] || 0) + amount;
   if (cart[id] <= 0) delete cart[id];
   saveStorage();
@@ -182,6 +201,12 @@ function addVariantToCart(id, variantId) {
   const product = productById(id);
   if (!product || !variantById(product, variantId)) return false;
   const key = `${id}:${variantId}`;
+  const quantityInCart = Object.entries(cart).reduce((total, [cartKey, quantity]) =>
+    total + (cartKey.startsWith(`${id}:`) ? quantity : 0), 0);
+  if (quantityInCart >= Number(product.stock)) {
+    toast('تعداد انتخاب‌شده بیشتر از موجودی محصول است.');
+    return false;
+  }
   cart[key] = (cart[key] || 0) + 1;
   saveStorage();
   render();
@@ -220,16 +245,17 @@ function showProduct(id) {
     <div>
       <h2>${escapeHtml(product.name)}</h2>
       ${variants.length
-        ? `<label class="variant-picker">انتخاب سایز
+        ? Number(product.stock) > 0 ? `<label class="variant-picker">انتخاب سایز
           <select id="selected-variant">${variants.map(variant =>
             `<option value="${Number(variant.id)}">${escapeHtml(variant.size)}</option>`).join('')}</select>
         </label>
         <span class="price" id="selected-variant-price">${variantPrice(firstVariant)}</span>`
-        : `<span class="price">${price(product)}</span>`}
+        : '<span class="price">ناموجود</span>'
+        : `<span class="price">${Number(product.stock) > 0 ? price(product) : 'ناموجود'}</span>`}
       <p>${escapeHtml(product.description)}</p>
       <p>دسته: ${escapeHtml(product.category_name || '')}</p>
       <div class="cta">
-        <button class="btn" type="button" data-add="${Number(product.id)}" ${variants.length ? 'data-variant-select' : ''} data-close-dialog>افزودن به سبد</button>
+        <button class="btn" type="button" data-add="${Number(product.id)}" ${variants.length ? 'data-variant-select' : ''} data-close-dialog ${Number(product.stock) <= 0 ? 'disabled' : ''}>${Number(product.stock) > 0 ? 'افزودن به سبد' : 'ناموجود'}</button>
         <button class="btn ghost" type="button" data-close-dialog>بستن</button>
       </div>
     </div>
@@ -290,9 +316,9 @@ if (grid) {
   const params = new URLSearchParams(location.search);
   if (params.has('sort')) sort.value = params.get('sort');
   if (params.has('category')) categoryFilter.value = params.get('category');
-  search.addEventListener('input', () => { render(); updateUrl(); });
-  sort.addEventListener('change', () => { render(); updateUrl(); });
-  categoryFilter.addEventListener('change', () => { render(); updateUrl(); });
+  search.addEventListener('input', () => { currentPage = 1; render(); updateUrl(); });
+  sort.addEventListener('change', () => { currentPage = 1; render(); updateUrl(); });
+  categoryFilter.addEventListener('change', () => { currentPage = 1; render(); updateUrl(); });
   loadProducts();
 }
 
@@ -317,6 +343,14 @@ document.addEventListener('click', event => {
   }
   if (button.dataset.quantity) {
     const [key, amount] = button.dataset.quantity.split('|');
+    const {productId} = cartEntry(key);
+    const product = productById(productId);
+    const quantityInCart = Object.entries(cart).reduce((total, [cartKey, quantity]) =>
+      total + (cartEntry(cartKey).productId === productId ? quantity : 0), 0);
+    if (Number(amount) > 0 && product && quantityInCart >= Number(product.stock)) {
+      toast('تعداد انتخاب‌شده بیشتر از موجودی محصول است.');
+      return;
+    }
     cart[key] = (cart[key] || 0) + Number(amount);
     if (cart[key] <= 0) delete cart[key];
     saveStorage();
@@ -328,6 +362,11 @@ document.addEventListener('click', event => {
     saveStorage();
     render();
     drawCart();
+  }
+  if (button.dataset.pageStep) {
+    currentPage += Number(button.dataset.pageStep);
+    render();
+    $('#shop').scrollIntoView({behavior: 'smooth'});
   }
   if (button.id === 'cb') setDrawer(true);
   if (button.id === 'dc') setDrawer(false);

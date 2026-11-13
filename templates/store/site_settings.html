@@ -42,6 +42,7 @@
           {% include 'store/_settings_field.html' with field=form.track_subtitle %}
           {% include 'store/_settings_field.html' with field=form.order_title %}
           {% include 'store/_settings_field.html' with field=form.order_subtitle %}
+          {% include 'store/_settings_field.html' with field=form.shipping_cost %}
         </div>
       </details>
       <details class="settings-group" {% if form.errors or social_formset.errors %}open{% endif %}>

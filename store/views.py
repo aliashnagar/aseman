@@ -1,5 +1,6 @@
 from datetime import datetime, time, timedelta
 from functools import wraps
+import json
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
@@ -17,6 +18,7 @@ from .forms import (
     AdminCreationForm,
     CategoryForm,
     CustomerRegistrationForm,
+    FAQForm,
     OrderForm,
     OrderItemFormSetFactory,
     ProductForm,
@@ -25,7 +27,11 @@ from .forms import (
     normalize_phone,
 )
 from .forms import SiteSettingsForm
-from .models import Category, CustomerProfile, Order, OrderItem, PageView, Product, ProductImage, SiteSettings
+from .models import Category, CustomerProfile, FAQ, Order, OrderItem, PageView, Product, ProductImage, ProductVariant, SiteSettings
+
+
+class InsufficientInventory(Exception):
+    pass
 
 
 def panel_login_required(view):
@@ -50,11 +56,127 @@ def home(request):
         "site": site,
         "categories": categories,
         "selected_category": selected_category,
+        "faq_items": FAQ.objects.all(),
     })
 
 
 def checkout(request):
     return render(request, "store/checkout.html", {"site": SiteSettings.get()})
+
+
+def checkout_submit(request):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "اطلاعات سفارش معتبر نیست."}, status=400)
+    if not isinstance(data, dict):
+        return JsonResponse({"error": "اطلاعات سفارش معتبر نیست."}, status=400)
+
+    name = str(data.get("name", "")).strip()
+    phone = normalize_phone(str(data.get("phone", "")))
+    province = str(data.get("province", "")).strip()
+    city = str(data.get("city", "")).strip()
+    address = str(data.get("address", "")).strip()
+    postal_code = str(data.get("postal_code", "")).translate(str.maketrans(
+        "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789",
+    ))
+    cart_data = data.get("cart")
+    if (
+        not name or len(name) > 120 or len(phone) < 4 or not phone.lstrip("+").isdigit()
+        or not province or not city or len(address) < 8
+        or len(postal_code) != 10 or not postal_code.isdecimal()
+        or data.get("payment") != "card_transfer"
+        or not isinstance(cart_data, dict) or not cart_data or len(cart_data) > 50
+    ):
+        return JsonResponse({"error": "مشخصات گیرنده، روش پرداخت یا سبد خرید را بررسی کنید."}, status=400)
+
+    requested_items = []
+    quantities_by_product = {}
+    for key, quantity in cart_data.items():
+        if not isinstance(key, str) or type(quantity) is not int or quantity < 1 or quantity > 99:
+            return JsonResponse({"error": "تعداد محصولات سفارش معتبر نیست."}, status=400)
+        identifiers = key.split(":")
+        if len(identifiers) not in (1, 2) or not all(value.isdecimal() for value in identifiers):
+            return JsonResponse({"error": "محصول انتخاب‌شده معتبر نیست."}, status=400)
+        product_id = int(identifiers[0])
+        variant_id = int(identifiers[1]) if len(identifiers) == 2 else None
+        if product_id < 1 or (variant_id is not None and variant_id < 1):
+            return JsonResponse({"error": "محصول انتخاب‌شده معتبر نیست."}, status=400)
+        requested_items.append((product_id, variant_id, quantity))
+        quantities_by_product[product_id] = quantities_by_product.get(product_id, 0) + quantity
+
+    try:
+        with transaction.atomic():
+            site = SiteSettings.get()
+            products = Product.objects.select_for_update().filter(
+                pk__in=quantities_by_product,
+                is_active=True,
+            ).prefetch_related("variants").in_bulk()
+            if len(products) != len(quantities_by_product):
+                return JsonResponse({"error": "یک یا چند محصول دیگر در دسترس نیستند."}, status=400)
+            variant_ids = [variant_id for _, variant_id, _ in requested_items if variant_id]
+            variants = ProductVariant.objects.select_for_update().filter(pk__in=variant_ids).in_bulk()
+            resolved_items = []
+            for product_id, variant_id, quantity in requested_items:
+                product = products[product_id]
+                variant = variants.get(variant_id) if variant_id else None
+                if (variant_id and (not variant or variant.product_id != product_id)) or (
+                    product.variants.exists() and not variant
+                ):
+                    return JsonResponse({"error": "سایز انتخاب‌شده برای محصول معتبر نیست."}, status=400)
+                resolved_items.append((product, variant, quantity))
+            shortages = [
+                product for product_id, quantity in quantities_by_product.items()
+                if (product := products[product_id]).stock < quantity
+            ]
+            if shortages:
+                return JsonResponse({"error": "موجودی یک یا چند محصول کافی نیست؛ سبد را اصلاح کنید."}, status=409)
+            for product_id, quantity in quantities_by_product.items():
+                if not Product.objects.filter(pk=product_id, stock__gte=quantity).update(
+                    stock=F("stock") - quantity,
+                ):
+                    raise InsufficientInventory
+
+            order = Order.objects.create(
+                customer_name=name,
+                phone=phone,
+                address=f"{province}، {city}، {address}",
+                status=Order.Status.NEW,
+                inventory_deducted=True,
+                shipping_cost=site.shipping_cost,
+            )
+            response_items = []
+            subtotal = 0
+            for product, variant, quantity in resolved_items:
+                unit_price = variant.price if variant else product.price
+                OrderItem.objects.create(
+                    order=order,
+                    product=product,
+                    variant_name=variant.size if variant else "",
+                    quantity=quantity,
+                    unit_price=unit_price,
+                )
+                item_total = unit_price * quantity
+                subtotal += item_total
+                response_items.append({
+                    "name": product.name,
+                    "variant": variant.size if variant else "",
+                    "quantity": quantity,
+                    "unit_price": unit_price,
+                    "total": item_total,
+                })
+    except InsufficientInventory:
+        return JsonResponse({"error": "موجودی یک یا چند محصول همین حالا تغییر کرد؛ سبد را دوباره بررسی کنید."}, status=409)
+
+    return JsonResponse({
+        "order_id": order.pk,
+        "items": response_items,
+        "subtotal": subtotal,
+        "shipping_cost": order.shipping_cost,
+        "total": subtotal + order.shipping_cost,
+    })
 
 
 @panel_login_required
@@ -105,9 +227,10 @@ def products_api(request):
         products = products.filter(category__slug=category)
     if query:
         products = products.filter(name__icontains=query)
-    return JsonResponse({"products": [{
+    return JsonResponse({"shipping_cost": SiteSettings.get().shipping_cost, "products": [{
         "id": product.id, "name": product.name, "description": product.description,
         "price": product.price, "old_price": product.old_price,
+        "stock": product.stock,
         "sold_quantity": product.sold_quantity,
         "variants": [{
             "id": variant.id, "size": variant.size, "price": variant.price,
@@ -364,6 +487,29 @@ def category_list(request):
 
 
 @panel_login_required
+def faq_manage(request):
+    if request.method == "POST":
+        if request.POST.get("action") == "delete":
+            faq = get_object_or_404(FAQ, pk=request.POST.get("faq_id"))
+            faq.delete()
+            messages.success(request, "سوال پرتکرار حذف شد.")
+            return redirect("faq_manage")
+        form = FAQForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "سوال پرتکرار اضافه شد.")
+            return redirect("faq_manage")
+    elif request.method == "GET":
+        form = FAQForm()
+    else:
+        return HttpResponseNotAllowed(["GET", "POST"])
+    return render(request, "store/faq_manage.html", {
+        "form": form,
+        "faq_items": FAQ.objects.all(),
+    })
+
+
+@panel_login_required
 def product_edit(request, pk=None):
     product = get_object_or_404(Product, pk=pk) if pk is not None else None
     if request.method == "POST":
@@ -452,9 +598,33 @@ def order_list(request):
         if status not in Order.Status.values:
             messages.error(request, "وضعیت انتخاب‌شده معتبر نیست.")
         else:
-            order = get_object_or_404(Order, pk=order_id)
-            order.status = status
-            order.save(update_fields=["status"])
+            with transaction.atomic():
+                order = get_object_or_404(Order.objects.select_for_update(), pk=order_id)
+                items = list(order.items.values("product_id").annotate(quantity=Sum("quantity")))
+                if order.status == Order.Status.CANCELLED and status != Order.Status.CANCELLED:
+                    locked_products = Product.objects.select_for_update().in_bulk(
+                        item["product_id"] for item in items
+                    )
+                    shortages = [
+                        item for item in items
+                        if locked_products[item["product_id"]].stock < item["quantity"]
+                    ]
+                    if shortages:
+                        messages.error(request, "موجودی کافی برای فعال‌کردن دوباره این سفارش وجود ندارد.")
+                        return redirect("order_list")
+                    for item in items:
+                        Product.objects.filter(pk=item["product_id"]).update(
+                            stock=F("stock") - item["quantity"]
+                        )
+                    order.inventory_deducted = True
+                elif status == Order.Status.CANCELLED and order.inventory_deducted:
+                    for item in items:
+                        Product.objects.filter(pk=item["product_id"]).update(
+                            stock=F("stock") + item["quantity"]
+                        )
+                    order.inventory_deducted = False
+                order.status = status
+                order.save(update_fields=["status", "inventory_deducted"])
             messages.success(request, f"وضعیت سفارش #{order.pk} به‌روز شد.")
         return redirect("order_list")
     if request.method != "GET":
@@ -470,12 +640,43 @@ def order_add(request):
         form = OrderForm(request.POST, instance=order)
         item_formset = OrderItemFormSetFactory(request.POST, instance=order, prefix="items")
         if form.is_valid() and item_formset.is_valid():
+            saved_order = None
             with transaction.atomic():
-                saved_order = form.save()
-                item_formset.instance = saved_order
-                item_formset.save()
-            messages.success(request, f"سفارش ثبت شد. شماره پیگیری مشتری: {saved_order.pk}")
-            return redirect("order_list")
+                requested = {}
+                for item_form in item_formset.forms:
+                    data = item_form.cleaned_data
+                    if data and not data.get("DELETE") and data.get("product"):
+                        product_id = data["product"].pk
+                        requested[product_id] = requested.get(product_id, 0) + data["quantity"]
+                locked_products = Product.objects.select_for_update().in_bulk(requested)
+                shortages = {} if form.cleaned_data["status"] == Order.Status.CANCELLED else {
+                    product_id: quantity - locked_products[product_id].stock
+                    for product_id, quantity in requested.items()
+                    if locked_products[product_id].stock < quantity
+                }
+                if shortages:
+                    for item_form in item_formset.forms:
+                        data = item_form.cleaned_data
+                        product = data.get("product") if data else None
+                        if product and product.pk in shortages:
+                            item_form.add_error(
+                                "quantity",
+                                f"موجودی کافی نیست؛ موجودی فعلی {locked_products[product.pk].stock} عدد است.",
+                            )
+                else:
+                    saved_order = form.save()
+                    saved_order.shipping_cost = SiteSettings.get().shipping_cost
+                    saved_order.save(update_fields=["shipping_cost"])
+                    item_formset.instance = saved_order
+                    item_formset.save()
+                    if saved_order.status != Order.Status.CANCELLED:
+                        for product_id, quantity in requested.items():
+                            Product.objects.filter(pk=product_id).update(stock=F("stock") - quantity)
+                        saved_order.inventory_deducted = True
+                        saved_order.save(update_fields=["inventory_deducted"])
+            if saved_order:
+                messages.success(request, f"سفارش ثبت شد. شماره پیگیری مشتری: {saved_order.pk}")
+                return redirect("order_list")
     elif request.method == "GET":
         form = OrderForm(instance=order)
         item_formset = OrderItemFormSetFactory(instance=order, prefix="items")
